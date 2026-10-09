@@ -1,9 +1,23 @@
+// Keep the media element and all audio controls in sync. Raising volume unmutes;
+// unmuting from zero restores the last audible level instead of remaining silent.
+let lastAudibleVolume=.8;
+function enableAudioTrack(){const tracks=video.audioTracks;if(tracks?.length&&!Array.from(tracks).some(track=>track.enabled))tracks[0].enabled=true}
 function syncAudioControls(){
- $('muted').checked=video.muted;$('volumeValue').textContent=Math.round(video.volume*100)+'%';$('audioStateLabel').textContent=video.muted||video.volume===0?'已静音':'声音已开启';
+ if(video.volume>0)lastAudibleVolume=video.volume;
+ $('muted').checked=video.muted;$('volume').value=Math.round(video.volume*100);$('volumeValue').textContent=Math.round(video.volume*100)+'%';
+ $('audioStateLabel').textContent=video.muted||video.volume===0?'已静音':'声音已开启';
 }
-function updateAudioControls(){for(const id of ['audioExport','audioSetStart','audioSetEnd'])$(id).disabled=!state.ready||state.busy;for(const id of ['audioStart','audioEnd','pauseAfterCapture'])$(id).disabled=state.busy;$('audioCancel').hidden=!state.audioExporting;syncAudioControls()}
-$('volume').oninput=()=>{video.volume=Number($('volume').value)/100;syncAudioControls()};video.addEventListener('volumechange',syncAudioControls);
-video.addEventListener('loadeddata',()=>{$('audioStart').value='';$('audioEnd').value='';$('audioStatus').textContent='起止都留空时导出整段音频。';video.playbackRate=Number($('speed').value);video.volume=Number($('volume').value)/100;video.muted=$('muted').checked;syncAudioControls()});
+function setPlaybackMuted(muted){
+ if(!muted){video.defaultMuted=false;video.removeAttribute('muted');if(video.volume===0)video.volume=lastAudibleVolume;enableAudioTrack()}
+ video.muted=muted;syncAudioControls();
+}
+function resetPlaybackAudio(){video.defaultMuted=false;video.removeAttribute('muted');video.volume=.8;video.muted=false;lastAudibleVolume=.8;enableAudioTrack();syncAudioControls()}
+function updateAudioControls(){for(const id of ['audioExport','audioSetStart','audioSetEnd','restoreSound'])$(id).disabled=!state.ready||state.busy;for(const id of ['audioStart','audioEnd','pauseAfterCapture'])$(id).disabled=state.busy;$('audioCancel').hidden=!state.audioExporting;syncAudioControls()}
+$('volume').oninput=()=>{video.volume=Number($('volume').value)/100;if(video.volume>0)setPlaybackMuted(false);else syncAudioControls()};
+video.addEventListener('volumechange',syncAudioControls);
+video.addEventListener('loadstart',resetPlaybackAudio);
+video.addEventListener('loadeddata',()=>{$('audioStart').value='';$('audioEnd').value='';$('audioStatus').textContent='起止都留空时导出整段音频。';video.playbackRate=Number($('speed').value);enableAudioTrack();syncAudioControls()});
+$('restoreSound').onclick=async()=>{resetPlaybackAudio();try{if(video.paused)await video.play();toast('已开启声音，音量 80%')}catch(e){toast('声音已开启，请点击播放：'+e.message)}updateControls()};
 for(const [id,target]of [['audioSetStart','audioStart'],['audioSetEnd','audioEnd']])$(id).onclick=()=>{$(target).value=video.currentTime.toFixed(3)};
 async function exportAudio(){
  if(!state.ready||!state.sourceFile||state.busy)return;
