@@ -1,0 +1,13 @@
+import fs from 'node:fs/promises';
+import path from 'node:path';
+import assert from 'node:assert/strict';
+import {fileURLToPath} from 'node:url';
+const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
+const html=await fs.readFile(path.join(root,'index.html'),'utf8');
+const script=html.match(/<script id="frameApp">([\s\S]*?)<\/script>/)?.[1];assert(script);new Function(script);
+const markup=html.slice(0,html.indexOf('<script')+'<script id="frameApp">'.length),ids=[...markup.matchAll(/\bid="([^"]+)"/g)].map(m=>m[1]);
+assert.equal(new Set(ids).size,ids.length,'duplicate ids');for(const m of script.matchAll(/\$\('([\w-]+)'\)/g))assert(ids.includes(m[1]),'missing control '+m[1]);
+assert(html.includes("connect-src 'none'"));assert(!/\b(?:fetch|XMLHttpRequest|WebSocket|sendBeacon)\s*\(/.test(script));
+assert(!/<(?:script|link|iframe|img|video)[^>]*(?:src|href)=["']https?:/i.test(markup));assert(!/pdfState|workspaceNav|__APP__|__CSS__|__CSP__/.test(html));
+assert.equal(await fs.readFile(path.join(root,'dist/index.html'),'utf8'),html);
+assert(html.includes('Copyright (c) 2026 木小樨'));console.log('PASS: syntax, bindings, standalone isolation, offline CSP, entry equality and license.');
