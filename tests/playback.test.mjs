@@ -21,8 +21,8 @@ test('normal seeks preserve playing and paused states; frame step explicitly pau
  h.video.paused=true;await h.run('navigate(15)');assert.equal(h.video.paused,true);assert.equal(h.video.playCount,0);
  h.video.paused=false;await h.run('navigate(15.04,{pause:true})');assert.equal(h.video.paused,true);assert.equal(h.video.pauseCount,1);
 });
-test('left/right seek by three seconds with a focused play button or timeline and clamp at bounds',async()=>{
- const h=harness();await h.key('ArrowRight',{tagName:'BUTTON',id:'playBtn'});assert.equal(h.video.currentTime,13);assert.equal(h.video.paused,false);
+test('left/right seek by 1.5 seconds with a focused play button or timeline and clamp at bounds',async()=>{
+ const h=harness();await h.key('ArrowRight',{tagName:'BUTTON',id:'playBtn'});assert.equal(h.video.currentTime,11.5);assert.equal(h.video.paused,false);
  await h.key('ArrowLeft',{tagName:'INPUT',id:'timeline'});assert.equal(h.video.currentTime,10);
  await h.run('navigate(1)');await h.key('ArrowLeft');assert.equal(h.video.currentTime,0);
  await h.run('navigate(59)');await h.key('ArrowRight');assert(h.video.currentTime<60&&h.video.currentTime>59.99);

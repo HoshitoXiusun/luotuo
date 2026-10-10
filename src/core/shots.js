@@ -1,6 +1,10 @@
-// Display numbers are dense in capture order; ids stay stable for undo/projects.
-export function assignShotNumbers(shots){
- [...shots].sort((a,b)=>a.id-b.id).forEach((shot,index)=>shot.number=index+1);
+// Display order and display numbers share one comparator; ids never change.
+export function sortShots(shots,mode='time'){
+ const compareSource=(a,b)=>String(a?.name||'').localeCompare(String(b?.name||''),'zh-CN',{numeric:true})||(a?.size||0)-(b?.size||0)||(a?.lastModified||0)-(b?.lastModified||0);
+ return [...shots].sort(mode==='capture'?(a,b)=>b.id-a.id:(a,b)=>compareSource(a.source,b.source)||(a.time||0)-(b.time||0)||a.id-b.id);
+}
+export function assignShotNumbers(shots,mode='time'){
+ sortShots(shots,mode).forEach((shot,index)=>shot.number=index+1);
  return shots;
 }
 export function parseTime(value){
