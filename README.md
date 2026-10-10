@@ -13,7 +13,7 @@ HoshitoXiusun 的独立个人视频截图与音轨网站。浅牛皮纸、蓝色
 
 ## 使用
 
-在线站点：**https://hoshitoxiusun.github.io/luotuo/**（GitHub Pages）。源码：[HoshitoXiusun/luotuo](https://github.com/HoshitoXiusun/luotuo)。
+在线站点：https://hoshitoxiusun.github.io/luotuo/（GitHub Pages）。源码：[HoshitoXiusun/luotuo](https://github.com/HoshitoXiusun/luotuo)。
 
 本地打开根目录 `index.html` 或 `dist/index.html`，推荐 Chrome / Edge。无需安装依赖或启动服务器。静态站点初次访问会下载程序，文件处理仍在浏览器本机完成；需要断网使用时，点击“离线页面”下载 HTML。
 
@@ -50,6 +50,6 @@ npm test
 
 ## 来源与许可
 
-独立站从律师工作台的视频模块拆分，保留最初视频工具的本地处理思路；截图流程参考 [FrameWow](https://framewow.toolooz.com/guide)。跨平台路径工具与 SVG 图标改编自 [Docsy](https://github.com/muxiaoxiii/docsy) 基线 `b9c2114ee2453ea73b0973f497b6818fa0e4c9a1`，MIT。原许可见 LICENSE-Docsy，当前项目许可见 LICENSE。
+独立站从律师工作台的视频模块拆分，保留最初视频工具的本地处理思路；截图流程参考了 [FrameWow](https://framewow.toolooz.com/guide)。跨平台路径工具与 SVG 图标改编自 [Docsy](https://github.com/muxiaoxiii/docsy) 基线 `b9c2114ee2453ea73b0973f497b6818fa0e4c9a1`，MIT。原许可见 LICENSE-Docsy，当前项目许可见 LICENSE。
 
 不依赖工作台、PDF 引擎或 Docsy 运行时，不包含其余工作空间。设计与验证过程见 `history/设计沿革.md` 和 `docs/验证记录.md`。
