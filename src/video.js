@@ -1,6 +1,9 @@
 
 'use strict';
 const $=id=>document.getElementById(id), video=$('video');
+// Gecko/Zen: keep animated DOM overlays away from the native playing video.
+// This changes only the live preview; exported images still use hasMark()/stamp().
+const stableLivePreview=typeof CSS!=='undefined'&&CSS.supports('-moz-appearance','none');
 const state={source:null,url:null,ready:false,busy:false,cancel:false,shots:[],nextId:1,previewId:null,previewURL:null,previewSeq:0,loadSeq:0,undo:[],dirty:false,scrubbing:false,workspace:'video',functionId:'manual',sourceFile:null,audioExporting:false,audioCancel:false};
 video.muted=false;video.volume=.8;
 function toast(message){$('toast').textContent=message;$('toast').hidden=false;clearTimeout(toast.timer);toast.timer=setTimeout(()=>$('toast').hidden=true,4500)}
@@ -15,13 +18,62 @@ function syncTime(){
  const t=video.currentTime||0,s=settings(),now=timeText(t),mark=$('screenMark');
  if($('now').textContent!==now)$('now').textContent=now;
  if(!video.seeking&&!state.scrubbing&&Number($('timeline').value)!==t)$('timeline').value=t;
- const text=stamp(t,s);if(mark.textContent!==text)mark.textContent=text;
- const hidden=!state.ready||!s.watermark;if(mark.hidden!==hidden)mark.hidden=hidden;
+ const playingCompat=stableLivePreview&&!video.paused;
+ if(!playingCompat){const text=stamp(t,s);if(mark.textContent!==text)mark.textContent=text}
+ const hidden=!state.ready||!s.watermark||playingCompat;if(mark.hidden!==hidden)mark.hidden=hidden;
  const style=s.position+'|'+s.color;if(style!==liveMarkStyle){markStyle(mark,s);mark.style.color=s.color;liveMarkStyle=style}
 }
 function queueTimeSync(){if(!timeSyncFrame)timeSyncFrame=requestAnimationFrame(()=>{timeSyncFrame=0;syncTime()})}
 function updateControls(){for(const id of ['playBtn','prevBtn','nextBtn','captureBtn','jumpBtn','timeline','setStart','setEnd','batchBtn'])$(id).disabled=!state.ready||state.busy;for(const id of ['openBtn','pickBtn','fileInput','speed','fps','batchMode','batchStart','batchEnd','batchStep'])$(id).disabled=state.busy;const any=state.shots.length>0;for(const id of ['csvBtn','zipBtn','clearBtn','selectAll'])$(id).disabled=!any||state.busy;const selected=state.shots.filter(s=>s.selected).length;const kept=state.shots.filter(s=>s.decision!=='exclude').length;$('reviewCounts').textContent=`保留 ${kept} · 排除 ${state.shots.length-kept}`;$('saveProjectBtn').disabled=!any||state.busy;$('restoreProjectBtn').disabled=state.busy;$('undoBtn').disabled=!state.undo.length||state.busy;$('csvBtn').disabled=!shotsForExport().length||state.busy;$('zipBtn').disabled=!shotsForExport().length||state.busy;$('exportHint').textContent=selected?`导出所选 ${shotsForExport().length} 张保留截图`:`导出全部 ${kept} 张保留截图`;$('deleteSelected').disabled=!selected||state.busy;$('selectAll').disabled=!kept||state.busy||$('reviewFilter').value==='exclude';estimateBatch();$('count').textContent=state.shots.length;$('selectedCount').textContent='已选 '+selected+' 张';$('selectAll').checked=kept>0&&selected===kept;$('selectAll').indeterminate=selected>0&&selected<kept;$('cancelBtn').hidden=!state.busy||!state.batching;$('playBtn').textContent=video.paused?'▶ 播放':'❚❚ 暂停';updateAudioControls()}
-async function loadFile(file){if(state.busy)return;if(!file)return;const seq=++state.loadSeq;video.pause();state.ready=false;state.scrubbing=false;updateControls();state.sourceFile=file;if(state.url)URL.revokeObjectURL(state.url);state.url=URL.createObjectURL(file);state.source={name:fileName(file.name),extension:getExtension(file.name),size:file.size,lastModified:file.lastModified,type:file.type};video.src=state.url;video.hidden=false;$('dropzone').classList.add('has-video');$('dropPrompt').hidden=true;$('sourceName').textContent=file.name;$('videoMeta').textContent='正在读取视频…';video.load();try{await new Promise((resolve,reject)=>{const timer=setTimeout(()=>done(Error('视频读取超时，请尝试更换视频编码')),20000);const done=err=>{clearTimeout(timer);video.removeEventListener('loadeddata',ok);video.removeEventListener('error',bad);err?reject(err):resolve()};const ok=()=>done();const bad=()=>done(Error('浏览器无法解码此视频，请尝试 H.264 MP4'));video.addEventListener('loadeddata',ok,{once:true});video.addEventListener('error',bad,{once:true})});if(seq!==state.loadSeq)return;if(!Number.isFinite(video.duration)||video.duration<=0||!video.videoWidth)throw Error('视频时长或画面无效');state.ready=true;$('timeline').max=video.duration;$('duration').textContent=timeText(video.duration);$('videoMeta').textContent=`${video.videoWidth} × ${video.videoHeight} · ${(file.size/1048576).toFixed(1)} MB`;$('batchStart').value='';$('batchEnd').value='';toast('视频已载入，按 Enter 开始截图')}catch(e){if(seq!==state.loadSeq)return;state.ready=false;video.hidden=true;$('dropzone').classList.remove('has-video');$('dropPrompt').hidden=false;$('videoMeta').textContent='视频读取失败';toast(e.message)}finally{if(seq===state.loadSeq){syncTime();updateControls()}}}
+// Listen before assigning src/load(): cached local media can become ready immediately.
+// Replacing a source removes the old listeners and timer instead of letting them
+// observe the next source or hide its preview after the old timeout.
+function waitForVideoData(){
+ let cancel;
+ const promise=new Promise((resolve,reject)=>{
+  let settled=false;
+  const done=(err,loaded=true)=>{
+   if(settled)return;settled=true;clearTimeout(timer);
+   video.removeEventListener('loadeddata',ok);video.removeEventListener('error',bad);
+   err?reject(err):resolve(loaded);
+  };
+  const ok=()=>done(),bad=()=>done(Error('浏览器无法解码此视频，请尝试 H.264 MP4'));
+  const timer=setTimeout(()=>done(Error('视频读取超时，请重新选择视频或更换编码')),90000);
+  cancel=()=>done(null,false);
+  video.addEventListener('loadeddata',ok);video.addEventListener('error',bad);
+ });
+ return {promise,cancel};
+}
+async function loadFile(file){
+ if(state.busy||!file)return;
+ const seq=++state.loadSeq;state.cancelLoad?.();
+ video.pause();state.ready=false;state.scrubbing=false;updateControls();
+ state.sourceFile=file;
+ if(state.url)URL.revokeObjectURL(state.url);
+ state.url=URL.createObjectURL(file);
+ state.source={name:fileName(file.name),extension:getExtension(file.name),size:file.size,lastModified:file.lastModified,type:file.type};
+ video.hidden=false;$('dropzone').classList.add('has-video');$('dropPrompt').hidden=true;
+ $('sourceName').textContent=file.name;$('sourceName').title=file.name;
+ $('videoMeta').textContent='正在读取视频…';$('videoMeta').title='正在读取视频…';
+ $('timeline').value=0;$('timeline').max=1;$('now').textContent=timeText(0);$('duration').textContent=timeText(0);
+ const pending=waitForVideoData();state.cancelLoad=pending.cancel;
+ try{
+  video.src=state.url;video.load();
+  if(!await pending.promise||seq!==state.loadSeq)return;
+  if(!Number.isFinite(video.duration)||video.duration<=0||!video.videoWidth)throw Error('视频时长或画面无效');
+  state.ready=true;$('timeline').max=video.duration;$('duration').textContent=timeText(video.duration);
+  const meta=`${video.videoWidth} × ${video.videoHeight} · ${(file.size/1048576).toFixed(1)} MB`;
+  $('videoMeta').textContent=meta;$('videoMeta').title=meta;
+  $('batchStart').value='';$('batchEnd').value='';toast('视频已载入，按 Enter 开始截图');
+ }catch(e){
+  if(seq!==state.loadSeq)return;
+  state.ready=false;video.hidden=true;$('dropzone').classList.remove('has-video');$('dropPrompt').hidden=false;
+  $('videoMeta').textContent='视频读取失败';$('videoMeta').title=e.message;toast(e.message);
+ }finally{
+  pending.cancel();
+  if(seq===state.loadSeq){state.cancelLoad=null;syncTime();updateControls()}
+ }
+}
 function seek(t){return new Promise((resolve,reject)=>{if(!state.ready)return reject(Error('请先选择视频'));const target=Math.max(0,Math.min(video.duration-0.000001,t));if(Math.abs(video.currentTime-target)<0.00001&&!video.seeking&&video.readyState>=2)return resolve();let timer=setTimeout(()=>done(Error('视频定位超时')),12000);const done=err=>{clearTimeout(timer);video.removeEventListener('seeked',ok);video.removeEventListener('error',bad);err?reject(err):resolve()};const ok=()=>{if(video.readyState>=2)done();else done(Error('视频画面尚未解码'))};const bad=()=>done(Error('视频解码失败'));video.addEventListener('seeked',ok,{once:true});video.addEventListener('error',bad,{once:true});video.currentTime=target})}
 async function navigate(t,{pause=false}={}){if(!state.ready||state.busy)return;state.busy=true;if(pause)video.pause();updateControls();try{await seek(t);syncTime()}catch(e){toast(e.message)}finally{state.busy=false;updateControls()}}
 function canvasBlob(canvas,type='image/png',quality=1){return new Promise((resolve,reject)=>canvas.toBlob(b=>b?resolve(b):reject(Error('图片生成失败，可能内存不足')),type,quality))}
@@ -68,7 +120,7 @@ async function zipArchive(files,onProgress){const enc=new TextEncoder(),parts=[]
 async function exportZip(){if(state.busy||!state.shots.length)return;state.busy=true;updateControls();const shots=shotsForExport().map(shot=>({...shot,source:{...shot.source}})),s=settings();$('zipBtn').textContent='正在准备…';try{if(!shots.length)throw Error('没有可导出的保留截图');const rows=metadata(shots,s),files=[];for(let i=0;i<shots.length;i++){$('zipBtn').textContent=`生成图片 ${i+1}/${shots.length}`;files.push({name:filename(shots[i],s),blob:await output(shots[i],s)})}files.push({name:'截图清单.csv',blob:new Blob([csv(rows)],{type:'text/csv;charset=utf-8'})},{name:'元数据.json',blob:new Blob([JSON.stringify({tool:'帧记 Frame Notes',version:'1.0.2',exportedAt:new Date().toISOString(),settings:s,timeNotice:'视频内时间为浏览器定位时间；录像日期时间由用户填写起始时间推算；帧号按设定帧率估算。',screenshots:rows},null,2)],{type:'application/json'})});const zip=await zipArchive(files,i=>$('zipBtn').textContent=`打包 ${i}/${files.length}`);const saved=await save(zip,safeName(s.caseName||s.prefix)+'_截图材料.zip');if(saved)toast(`已导出 ${shots.length} 张截图及清单`)}catch(e){toast(e.message)}finally{state.busy=false;$('zipBtn').textContent='↓ 下载 ZIP';updateControls()}}
 $('fileInput').onchange=e=>{loadFile(e.target.files[0]);e.target.value=''};for(const id of ['openBtn','pickBtn'])$(id).onclick=()=>$('fileInput').click();$('dropzone').ondragover=e=>{e.preventDefault();if(!state.busy)$('dropzone').classList.add('dragging')};$('dropzone').ondragleave=()=>$('dropzone').classList.remove('dragging');$('dropzone').ondrop=e=>{e.preventDefault();$('dropzone').classList.remove('dragging');loadFile(e.dataTransfer.files[0])};
 async function togglePlay(){if(!state.ready||state.busy)return;try{video.paused?await video.play():video.pause()}catch(e){toast('播放失败：'+e.message)}updateControls()}
-$('playBtn').onclick=togglePlay;video.onclick=togglePlay;video.onplay=updateControls;video.onpause=updateControls;video.ontimeupdate=queueTimeSync;video.onseeked=queueTimeSync;video.onerror=()=>{if(state.ready){state.ready=false;updateControls();toast('视频解码中断，请重新选择视频')}};$('speed').onchange=()=>video.playbackRate=Number($('speed').value);$('muted').onchange=()=>setPlaybackMuted($('muted').checked);$('showGrid').onchange=()=>$('gridOverlay').hidden=!$('showGrid').checked;
+$('playBtn').onclick=togglePlay;video.onclick=togglePlay;video.onplay=()=>{syncTime();updateControls()};video.onpause=()=>{syncTime();updateControls()};video.ontimeupdate=queueTimeSync;video.onseeked=queueTimeSync;video.onerror=()=>{if(state.ready){state.ready=false;updateControls();toast('视频解码中断，请重新选择视频')}};$('speed').onchange=()=>video.playbackRate=Number($('speed').value);$('muted').onchange=()=>setPlaybackMuted($('muted').checked);$('showGrid').onchange=()=>$('gridOverlay').hidden=!$('showGrid').checked;
 $('timeline').oninput=()=>{state.scrubbing=true;$('now').textContent=timeText(Number($('timeline').value))};$('timeline').onchange=()=>{const target=Number($('timeline').value);state.scrubbing=false;navigate(target)};$('timeline').onblur=()=>{state.scrubbing=false;syncTime()};$('jumpBtn').onclick=()=>{const t=parseTime($('jumpTime').value);if(!Number.isFinite(t)||t>video.duration){toast('请输入视频时长以内的秒数或 HH:MM:SS.mmm');return}navigate(t)};function step(dir){try{navigate(video.currentTime+dir/fps(),{pause:true})}catch(e){toast(e.message)}}$('prevBtn').onclick=()=>step(-1);$('nextBtn').onclick=()=>step(1);$('captureBtn').onclick=capture;$('batchBtn').onclick=batch;$('cancelBtn').onclick=()=>{state.cancel=true;$('batchStatus').textContent='正在停止…'};
 $('batchMode').onchange=()=>{const frame=$('batchMode').value==='frame';$('startLabel').textContent=frame?'起始帧（从 0 开始）':'起点（秒或 HH:MM:SS）';$('endLabel').textContent=frame?'终止帧（含）':'终点（秒或 HH:MM:SS）';$('stepLabel').textContent=frame?'间隔（帧）':'间隔（秒）';$('batchStep').value=1;$('batchStep').step=frame?'1':'0.1';$('batchStep').min=frame?'1':'0.001';$('batchStart').value='';$('batchEnd').value='';estimateBatch()};for(const [id,target] of [['setStart','batchStart'],['setEnd','batchEnd']])$(id).onclick=()=>{try{$(target).value=$('batchMode').value==='frame'?Math.floor(video.currentTime*fps()):video.currentTime.toFixed(3);estimateBatch()}catch(e){toast(e.message)}};
 for(const id of ['watermark','stampMode','stampPosition','stampSize','recordStart','stampColor'])$(id).addEventListener('input',()=>{$('clockLabel').hidden=$('stampMode').value!=='clock';refreshMarks();markDirty()});$('quality').oninput=()=>$('qualityValue').textContent=$('quality').value+'%';$('format').onchange=()=>{$('formatHint').textContent=$('format').value==='png'?'PNG 无损导出，不受压缩质量设置影响。':'质量越高越清晰，文件也越大。';$('quality').disabled=$('format').value==='png'};$('quality').disabled=true;

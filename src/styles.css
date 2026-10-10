@@ -3,12 +3,24 @@
 @media(max-width:1050px){.site-main,.site-header{padding-left:24px;padding-right:24px}.site-hero{padding:38px 0}.hero-art{margin-right:10px;width:290px;height:200px}.art-word{font-size:45px}.video-layout{grid-template-columns:minmax(0,1fr) 285px;gap:12px}.play-row{flex-wrap:wrap}.play-row .row{flex-wrap:wrap}.keyboard{flex-wrap:wrap}.batch-grid{grid-template-columns:1fr 1fr}.batch-top{flex-wrap:wrap}.settings-layout{grid-template-columns:1fr}.studio-heading{gap:16px}.project-actions{justify-content:flex-end}.single-options{flex-wrap:wrap}.hero-chips{gap:12px}}
 @media(max-width:760px){.site-header{height:76px;gap:16px;padding:0 18px}.site-main{padding:0 18px}.site-links{gap:14px}.site-links a:first-child,.site-header>.offline-badge{display:none}.brand-mark{font-size:42px}.site-brand strong{font-size:17px}.site-hero{padding:35px 0 30px;gap:12px}.site-hero h1{font-size:36px}.hero-art{display:none}.site-hero p{font-size:11px}.hero-chips{gap:10px;flex-wrap:wrap}.studio-heading{display:block}.project-actions{justify-content:flex-start;margin-top:12px}.project-actions button{font-size:10px;padding:6px 8px}.mode-nav{gap:7px}.mode-nav button{padding:10px;display:flex;align-items:flex-start;gap:7px;flex-direction:column}.mode-nav button>span{font-size:17px}.mode-nav strong{font-size:11px}.mode-nav small{display:none}.workspace-ribbon{flex-wrap:wrap;gap:7px}.ribbon-note{margin-left:0;width:100%}.video-layout{grid-template-columns:1fr}.captures-panel{position:static}.gallery{max-height:650px}.screen{aspect-ratio:16/10}.play-row>.primary{width:100%;margin-top:6px}.play-row .row{width:100%;justify-content:space-between}.shared-video-options{flex-wrap:wrap}.audio-bar{gap:9px;flex-wrap:wrap}.volume-control input{width:85px}#audioStateLabel{display:none}.keyboard{font-size:8px}.keyboard>span:last-child{display:none}.source-strip{flex-wrap:wrap;font-size:9px}.source-strip #sourceName{max-width:100%}.two{gap:8px}.batch-top button{font-size:10px}.batch-grid{gap:10px}.batch-grid>label:last-child{grid-column:span 2}.audio-range>label:last-child{grid-column:auto}.batch-actions{flex-wrap:wrap}.tool-pane>.row{flex-wrap:wrap}.pane-heading h3{font-size:12px}.pane-heading .chip{font-size:8px}.video-settings summary span{display:block;margin:3px 0}.working-note{flex-wrap:wrap}.site-footer{gap:20px;flex-wrap:wrap;margin-top:32px}.preview-bottom>.row{flex-wrap:wrap}.preview-bottom button{font-size:10px}dialog{padding:16px}.dialog-head h2{font-size:16px}.desktop-break{display:none}}
 
-/* Keep native decoded video geometry independent of intrinsic frame size and overlays. */
-.screen{min-height:0;isolation:isolate;contain:layout paint}
-.screen video{position:absolute;inset:0;min-width:0;min-height:0}
+/* Reserve the preview before any media exists. Native video, prompts and overlays
+   never participate in sizing; avoid paint containment on hardware video layers. */
+html{scrollbar-gutter:stable;overflow-anchor:none}
+.video-column,.player-panel,.captures-panel{min-width:0}
+.screen{display:block;aspect-ratio:auto;min-height:0}
+.screen::before{content:"";display:block;padding-top:56.25%;pointer-events:none}
+.screen video,.screen .drop{position:absolute;inset:0;min-width:0;min-height:0;width:100%;height:100%}
+.screen .drop{padding:8px;overflow:auto}
+.source-strip{height:33px;min-height:33px;flex-wrap:nowrap;align-items:center}
+.source-strip #sourceName{flex:1 1 0;min-width:0;max-width:none}
+#videoMeta{flex:0 1 auto;min-width:0;max-width:48%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#playBtn{width:73px;flex:0 0 73px;white-space:nowrap}
 .timeline>.time{flex:0 0 12ch;width:12ch;font-variant-numeric:tabular-nums}
 .timeline>.time:last-child{text-align:right}
-/* Gallery changes and image decoding must not move the page's scroll anchor. */
 .video-layout{overflow-anchor:none}
 .thumb{min-height:0}
 .thumb img{position:absolute;inset:0}
+@media(max-width:760px){.screen::before{padding-top:62.5%}}
+
+.preview-compat-note{padding:7px 16px;font-size:10px;line-height:1.6;color:var(--orange-strong);background:var(--orange-soft)}
+@media(max-width:760px){.video-layout{grid-template-columns:minmax(0,1fr)}}

@@ -4,17 +4,17 @@ import vm from 'node:vm';
 import fs from 'node:fs/promises';
 const videoSource=await fs.readFile(new URL('../src/video.js',import.meta.url),'utf8');
 const audioSource=await fs.readFile(new URL('../src/audio.js',import.meta.url),'utf8');
-function harness(){
+function harness({nativeSync=false,gecko=false}={}){
  const elements=new Map(),listeners={};let time=10;
  const video={paused:false,duration:60,seeking:false,readyState:2,volume:.8,muted:false,audioTracks:[{enabled:false}],pauseCount:0,playCount:0,
   pause(){this.paused=true;this.pauseCount++},async play(){this.paused=false;this.playCount++},removeAttribute(){},
   addEventListener(name,fn){(listeners[name]??=new Set()).add(fn)},removeEventListener(name,fn){listeners[name]?.delete(fn)},
   get currentTime(){return time},set currentTime(t){time=t;queueMicrotask(()=>{for(const fn of [...listeners.seeked??[]])fn()})}};
- const element=id=>{if(!elements.has(id))elements.set(id,{id,tagName:'INPUT',value:id==='fps'?'25':id==='volume'?'80':'',textContent:'',checked:false,hidden:false,disabled:false,addEventListener(){}});return elements.get(id)};
+ const element=id=>{if(!elements.has(id))elements.set(id,{id,tagName:'INPUT',value:id==='fps'?'25':id==='volume'?'80':'',textContent:'',checked:false,hidden:false,disabled:false,style:{},classList:{add(){},remove(){}},addEventListener(){}});return elements.get(id)};
  elements.set('video',video);const keyboard=[];
- const context=vm.createContext({document:{getElementById:element,activeElement:{tagName:'BODY'},querySelector:()=>null,addEventListener:(name,fn)=>{if(name==='keydown')keyboard.push(fn)}},window:{addEventListener(){}},setTimeout,clearTimeout,queueMicrotask,console,Blob,URL,Date});
- vm.runInContext(videoSource+'\n'+audioSource+'\nstate.ready=true;updateControls=()=>{};syncTime=()=>{};',context);
- return{video,element,context,run:code=>vm.runInContext(code,context),key:async(key,active={tagName:'BODY'})=>{context.document.activeElement=active;const e={key,preventDefault(){this.defaultPrevented=true}};keyboard[0](e);await new Promise(resolve=>setImmediate(resolve));return e}};
+ const context=vm.createContext({document:{getElementById:element,activeElement:{tagName:'BODY'},querySelector:()=>null,addEventListener:(name,fn)=>{if(name==='keydown')keyboard.push(fn)}},window:{addEventListener(){}},setTimeout,clearTimeout,queueMicrotask,console,Blob,URL,Date,CSS:{supports:()=>gecko},fileName:name=>name,getExtension:()=>'.webm'});
+ vm.runInContext(videoSource+'\n'+audioSource+'\nstate.ready=true;updateControls=()=>{};'+(nativeSync?'':'syncTime=()=>{};'),context);
+ return{video,element,context,listeners,run:code=>vm.runInContext(code,context),key:async(key,active={tagName:'BODY'})=>{context.document.activeElement=active;const e={key,preventDefault(){this.defaultPrevented=true}};keyboard[0](e);await new Promise(resolve=>setImmediate(resolve));return e}};
 }
 test('normal seeks preserve playing and paused states; frame step explicitly pauses',async()=>{
  const h=harness();await h.run('navigate(20)');assert.equal(h.video.currentTime,20);assert.equal(h.video.paused,false);assert.equal(h.video.pauseCount,0);
@@ -35,4 +35,26 @@ test('raising volume cancels mute and unmuting zero restores audible volume',()=
 test('new source and restore sound reset native mute, zero volume and disabled audio track',async()=>{
  const h=harness();h.video.muted=true;h.video.defaultMuted=true;h.video.volume=0;h.run('resetPlaybackAudio()');assert.equal(h.video.volume,.8);assert.equal(h.video.muted,false);assert.equal(h.video.defaultMuted,false);assert.equal(h.element('muted').checked,false);assert.equal(h.element('volumeValue').textContent,'80%');
  h.context.toast=()=>{};h.video.paused=true;await h.element('restoreSound').onclick();assert.equal(h.video.paused,false);assert.equal(h.video.playCount,1);
+});
+
+test('Gecko playing preview avoids animated watermarks; paused preview and image stamping stay available',()=>{
+ const h=harness({nativeSync:true,gecko:true});h.element('watermark').checked=true;h.element('stampMode').value='elapsed';h.element('stampPosition').value='br';h.element('screenMark').textContent='unchanged';
+ h.run('syncTime()');assert.equal(h.element('screenMark').hidden,true);assert.equal(h.element('screenMark').textContent,'unchanged');
+ assert.equal(h.run("hasMark({watermark:'inherit'})"),true);assert.match(h.run('stamp(10)'),/00:00:10.000/);
+ h.video.paused=true;h.run('syncTime()');assert.equal(h.element('screenMark').hidden,false);assert.match(h.element('screenMark').textContent,/00:00:10.000/);
+ const chromium=harness({nativeSync:true});chromium.element('watermark').checked=true;chromium.element('stampMode').value='elapsed';chromium.element('stampPosition').value='br';chromium.run('syncTime()');assert.equal(chromium.element('screenMark').hidden,false);
+});
+test('local media readiness is observed even if load dispatches immediately',async()=>{
+ const h=harness();h.video.duration=3605;h.video.videoWidth=640;h.video.videoHeight=360;
+ h.video.load=()=>{for(const fn of [...h.listeners.loadeddata??[]])fn()};
+ await h.run("loadFile(new Blob(['video']))");assert.equal(h.run('state.ready'),true);assert.equal(h.element('timeline').max,3605);assert.equal(h.run('state.cancelLoad'),null);
+ // The audio module keeps one persistent listener; the temporary source listener is gone.
+ assert.equal(h.listeners.loadeddata.size,1);assert.equal(h.listeners.error.size,0);h.run('clearTimeout(toast.timer);URL.revokeObjectURL(state.url)');
+});
+test('replacing an unfinished source cancels its callbacks without hiding the next preview',async()=>{
+ const h=harness();h.video.duration=3605;h.video.videoWidth=640;h.video.videoHeight=360;h.video.load=()=>{};
+ const first=h.run("loadFile(new Blob(['old']))");const second=h.run("loadFile(new Blob(['new']))");
+ assert.equal(h.listeners.loadeddata.size,2);assert.equal(h.listeners.error.size,1);
+ for(const fn of [...h.listeners.loadeddata])fn();await Promise.all([first,second]);
+ assert.equal(h.run('state.ready'),true);assert.equal(h.video.hidden,false);assert.equal(h.element('dropPrompt').hidden,true);assert.equal(h.listeners.loadeddata.size,1);assert.equal(h.listeners.error.size,0);assert.equal(h.run('state.cancelLoad'),null);h.run('clearTimeout(toast.timer);URL.revokeObjectURL(state.url)');
 });

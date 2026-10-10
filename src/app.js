@@ -1,3 +1,4 @@
+$('previewCompatNote').hidden=!stableLivePreview;
 const appIcons=__ICONS__;
 function mountIcons(){for(const el of document.querySelectorAll('[data-icon]'))el.innerHTML=appIcons[el.dataset.icon]||appIcons['video-frames']}
 function openMode(id){if(state.busy){toast('请先完成或停止当前任务');return}if(!['manual','batch','audio'].includes(id))return;state.functionId=id;for(const button of document.querySelectorAll('[data-mode]')){const active=button.dataset.mode===id;button.classList.toggle('active',active);button.setAttribute('aria-current',active?'page':'false')}$('singlePane').hidden=id!=='manual';$('batchPane').hidden=id!=='batch';$('audioPane').hidden=id!=='audio';$('captureBtn').hidden=id!=='manual';document.querySelector('.keyboard').hidden=id!=='manual';if(id==='batch')estimateBatch()}
