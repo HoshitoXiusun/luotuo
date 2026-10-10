@@ -13,7 +13,7 @@ HoshitoXiusun 的独立个人视频截图与音轨网站。浅牛皮纸、蓝色
 
 ## 使用
 
-在线站点：https://hoshitoxiusun.github.io/luotuo/（GitHub Pages）。源码：[HoshitoXiusun/luotuo](https://github.com/HoshitoXiusun/luotuo)。
+在线站点：https://hoshitoxiusun.github.io/luotuo/ （GitHub Pages）。源码：[HoshitoXiusun/luotuo](https://github.com/HoshitoXiusun/luotuo)。
 
 本地打开根目录 `index.html` 或 `dist/index.html`，推荐 Chrome / Edge。无需安装依赖或启动服务器。静态站点初次访问会下载程序，文件处理仍在浏览器本机完成；需要断网使用时，点击“离线页面”下载 HTML。
 
