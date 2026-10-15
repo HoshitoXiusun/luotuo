@@ -6,7 +6,7 @@ let template=await read('src/index.html');const css=await read('src/styles.css')
 const csp="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src blob: data:; media-src blob:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'";
 const license=(await read('LICENSE-Docsy')).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 template=template.replace('__CSS__',()=>css).replace('__CSP__',csp).replace('__LICENSE__',()=>license);
-const sources=['src/core/file-path.js','src/core/shots.js','src/core/audio.js','src/core/host.js','src/video.js','src/audio.js','src/core/project.js','src/app.js'];
+const sources=['src/core/file-path.js','src/core/shots.js','src/core/audio.js','src/core/host.js','src/core/hover-preview.js','src/video.js','src/audio.js','src/hover-preview.js','src/core/project.js','src/app.js'];
 const svg=(await read('src/assets/video-frames.svg')).replace(/stroke="#000"/g,'stroke="currentColor"');
 let script=(await Promise.all(sources.map(read))).map(s=>s.replace(/^import [^\n]+\n/gm,'').replace(/export /g,'')).join('\n');
 script=script.replace('__ICONS__',()=>JSON.stringify({'video-frames':svg})).replace('__SITE_MARKUP__',()=>JSON.stringify(template));
