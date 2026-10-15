@@ -48,3 +48,28 @@ html{scrollbar-gutter:stable;overflow-anchor:none}
 .screen.use-stable-video #video{opacity:.001;pointer-events:none}
 .stable-display-option{font-size:10px;color:var(--muted);margin-left:8px;white-space:nowrap}
 @media(max-width:420px){.stable-display-option{font-size:9px;margin-left:0}.player-panel>.panel-head{padding-left:12px;padding-right:12px}.player-panel>.panel-head>.row{gap:6px}}
+
+/* Compact review keeps the selection and export controls outside the scroll area. */
+.gallery-view{display:flex;border:1px solid var(--line);border-radius:6px;overflow:hidden;flex-shrink:0}
+.gallery-view button{border:0;border-radius:0;padding:4px 7px;font-size:10px;background:transparent;white-space:nowrap}
+.gallery-view button[aria-pressed=true]{background:var(--blue);color:white}
+.gallery-bulkbar{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 13px 6px}
+.gallery-bulkbar .check,.gallery-bulkbar .dim{font-size:10px;white-space:nowrap}
+.gallery-bulkbar #zipBtn{min-width:106px;min-height:30px;white-space:nowrap}
+.gallery-export-hint{padding:0 13px 9px;font-size:10px;color:var(--muted);border-bottom:1px solid var(--line)}
+.gallery-compact{display:grid;grid-template-columns:repeat(auto-fill,minmax(128px,1fr));gap:9px;align-content:start}
+.gallery-compact .empty{grid-column:1/-1}
+.gallery-compact .card{margin:0;min-width:0;border-radius:6px;align-self:start}
+.card.selected{border-color:var(--blue);box-shadow:0 0 0 1px var(--blue)}
+.gallery-compact .thumb{aspect-ratio:16/10}
+.gallery-compact .screen-mark{font-size:6px;padding:2px 3px;max-width:95%;overflow:hidden;white-space:nowrap}
+.gallery-compact .card-info{padding:7px}
+.gallery-compact .card-title{flex-wrap:wrap;gap:2px 5px}
+.gallery-compact .card-title .check{font-size:10px;min-height:22px}
+.gallery-compact .card-title .time{font-size:9px;margin-left:auto}
+.gallery-compact .card-info>.dim,.gallery-compact .card-note,.gallery-compact .card-info>select,.gallery-compact .card-footer{display:none}
+.capture-actions{display:flex;flex-wrap:wrap;gap:9px;align-items:center}
+.capture-actions>.row{flex:1;justify-content:flex-start;gap:7px}
+.gallery-help{width:100%;margin:0;color:var(--muted);font-size:10px;line-height:1.7}
+.preview-note-label{margin:10px 0 16px;font-size:11px}
+#previewNote{display:block;resize:vertical;min-height:58px;max-height:160px;font-size:12px}
