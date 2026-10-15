@@ -43,3 +43,8 @@ html{scrollbar-gutter:stable;overflow-anchor:none}
 .timeline-preview-decoder{position:fixed;left:-10000px;top:0;width:2px;height:2px;pointer-events:none;opacity:0}
 
 .timeline-preview.has-frame #timelinePreviewStatus{inset:7px 7px auto auto;display:block;padding:3px 6px;background:#20242dcc;border-radius:4px;font-size:9px}
+
+#videoCanvas{position:absolute;inset:0;display:block;width:100%;height:100%;cursor:pointer}
+.screen.use-stable-video #video{opacity:.001;pointer-events:none}
+.stable-display-option{font-size:10px;color:var(--muted);margin-left:8px;white-space:nowrap}
+@media(max-width:420px){.stable-display-option{font-size:9px;margin-left:0}.player-panel>.panel-head{padding-left:12px;padding-right:12px}.player-panel>.panel-head>.row{gap:6px}}
