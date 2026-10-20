@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {deflateSync} from 'node:zlib';
-import {normalizePageBox,pageBoxRect,createLayeredPDF} from '../src/core/page-box.js';
+import {normalizePageBox,pageBoxRect,createLayeredPDF,defaultPageBox} from '../src/core/page-box.js';
 globalThis.self=globalThis;
 await import('../vendor/pdf-lib/pdf-lib.min.js');
 delete globalThis.self;
@@ -29,4 +29,9 @@ test('removing a box content stream preserves the embedded screenshot exactly',a
  const bytes=await createLayeredPDF(shots.slice(0,1),{library:lib,renderImage:async()=>source}),doc=await lib.PDFDocument.load(bytes),page=doc.getPages()[0],images=page.node.Resources().lookup(lib.PDFName.of('XObject'));
  const entry=images.entries().find(([,r])=>doc.context.lookup(r).dict.lookup(lib.PDFName.of('Subtype')).toString()==='/Image'),image=doc.context.lookup(entry[1]),before=Buffer.from(image.getContents());assert.equal(page.node.Contents().size(),2);page.node.Contents().remove(1);
  const reopened=await lib.PDFDocument.load(await doc.save()),other=reopened.getPages()[0].node.Resources().lookup(lib.PDFName.of('XObject')),after=reopened.context.lookup(other.get(entry[0]));assert.deepEqual(Buffer.from(after.getContents()),before);assert.equal(reopened.getPages()[0].node.Contents().size(),1);
+});
+
+test('small default page boxes follow screenshot width across portrait and landscape',()=>{
+ for(const [w,h] of [[592,1280],[640,360],[1080,1920]]){const b=defaultPageBox(w,h),r=pageBoxRect(b,w,h);assert(Math.abs(r.width-w*.145)<1e-8);assert(Math.abs(r.height-w*.026)<1e-8);assert(r.height<h*.05);assert(Math.abs(r.x+r.width/2-w/2)<1e-8);assert(r.y+r.height<h)}
+ assert.throws(()=>defaultPageBox(0,360),/尺寸/);
 });

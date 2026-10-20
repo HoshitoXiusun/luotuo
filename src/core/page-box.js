@@ -1,10 +1,14 @@
+export function defaultPageBox(width,height){
+ if(!Number.isFinite(width)||!Number.isFinite(height)||width<=0||height<=0)throw Error('截图尺寸无效');
+ return {width:.145,height:Math.max(.001,Math.min(.25,.026*width/height)),bottom:.032,align:'center'};
+}
 // Relative to the screenshot, never to the preview's letterbox padding.
 export function normalizePageBox(value){
  if(value==null)return null;
  if(typeof value!=='object'||Array.isArray(value))throw Error('页码白框设置无效');
  const {width,height,bottom,align}=value;
  if(!['left','center','right'].includes(align))throw Error('页码白框位置无效');
- for(const [v,min,max] of [[width,.1,.8],[height,.01,.25],[bottom,0,.4]])if(typeof v!=='number'||!Number.isFinite(v)||v<min||v>max)throw Error('页码白框尺寸超出范围');
+ for(const [v,min,max] of [[width,.03,.8],[height,.001,.25],[bottom,0,.4]])if(typeof v!=='number'||!Number.isFinite(v)||v<min||v>max)throw Error('页码白框尺寸超出范围');
  return {width,height,bottom,align};
 }
 export function pageBoxRect(value,width,height){
@@ -19,7 +23,7 @@ export function pageBoxRect(value,width,height){
 export async function createLayeredPDF(shots,{library,renderImage,onProgress=()=>{}}){
  if(!shots.length)throw Error('没有可导出的保留截图');
  const {PDFDocument,PDFName,PDFHexString}=library,doc=await PDFDocument.create(),groups=[];
- doc.setTitle('Frame Notes Screenshots');doc.setProducer('Frame Notes 1.1.0');
+ doc.setTitle('Frame Notes Screenshots');doc.setProducer('Frame Notes 1.2.0');
  for(let i=0;i<shots.length;i++){
   const shot=shots[i],bytes=await renderImage(shot),image=await doc.embedPng(bytes);
   const width=595.28,height=width*shot.height/shot.width,page=doc.addPage([width,height]);
