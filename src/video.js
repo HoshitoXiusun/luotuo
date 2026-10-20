@@ -125,7 +125,7 @@ async function exportZip(){
   setExportProgress(`生成 ${i+1}/${shots.length}`);files.push({name:filename(shots[i],s),blob:await output(shots[i],s)});
   if(s.exportLayers&&shots[i].pageBox)files.push({name:'图层/'+filename(shots[i],{...s,format:'png'}).replace(/\.png$/,'.ora'),blob:await createShotORA(shots[i],s)});
  }
- if(s.exportCSV||s.exportMetadata){const rows=metadata(shots,s);if(s.exportCSV)files.push({name:'截图清单.csv',blob:new Blob([csv(rows)],{type:'text/csv;charset=utf-8'})});if(s.exportMetadata)files.push({name:'元数据.json',blob:new Blob([JSON.stringify({tool:'帧记 Frame Notes',version:'1.2.0',exportedAt:new Date().toISOString(),settings:s,screenshots:rows},null,2)],{type:'application/json'})})}
+ if(s.exportCSV||s.exportMetadata){const rows=metadata(shots,s);if(s.exportCSV)files.push({name:'截图清单.csv',blob:new Blob([csv(rows)],{type:'text/csv;charset=utf-8'})});if(s.exportMetadata)files.push({name:'元数据.json',blob:new Blob([JSON.stringify({tool:'帧记 Frame Notes',version:'1.2.1',exportedAt:new Date().toISOString(),settings:s,screenshots:rows},null,2)],{type:'application/json'})})}
  const zip=await zipArchive(files,(i)=>setExportProgress(`打包 ${i}/${files.length}`));if(await save(zip,safeName(s.caseName||s.prefix)+'_截图材料.zip'))toast(`已导出 ${shots.length} 张截图${s.exportLayers&&shots.some(s=>s.pageBox)?'及可编辑页码框图层':''}`);
  }catch(e){toast(e.message)}finally{state.busy=false;$('zipBtn').textContent='导出为 ZIP';updateControls()}
 }

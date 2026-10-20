@@ -35,3 +35,15 @@ test('small default page boxes follow screenshot width across portrait and lands
  for(const [w,h] of [[592,1280],[640,360],[1080,1920]]){const b=defaultPageBox(w,h),r=pageBoxRect(b,w,h);assert(Math.abs(r.width-w*.145)<1e-8);assert(Math.abs(r.height-w*.026)<1e-8);assert(r.height<h*.05);assert(Math.abs(r.x+r.width/2-w/2)<1e-8);assert(r.y+r.height<h)}
  assert.throws(()=>defaultPageBox(0,360),/尺寸/);
 });
+
+test('WPS default puts the box below the 1.27cm footer guide across page ratios',()=>{
+ for(const [w,h] of [[1080,1920],[640,360],[360,640],[1000,1000]]){
+  const b=defaultPageBox(w,h),pageWidth=595.28,pageHeight=pageWidth*h/w,r=pageBoxRect(b,pageWidth,pageHeight);
+  assert(Math.abs(pageHeight-r.y-36)<1e-8,'box top should follow the WPS footer margin guide');
+  assert(r.y+r.height<=pageHeight);assert(Math.abs(r.x+r.width/2-pageWidth/2)<1e-8);
+ }
+ const current=pageBoxRect(defaultPageBox(1080,1920),1080,1920),previous=pageBoxRect({width:.145,height:.026*1080/1920,bottom:.032,align:'center'},1080,1920);
+ assert(current.y>previous.y,'portrait box must move down to the actual footer text');
+ // Extremely short pages must still keep the entire box inside the image.
+ const short=pageBoxRect(defaultPageBox(2000,100),2000,100);assert(short.y>=0&&short.y+short.height<=100);
+});

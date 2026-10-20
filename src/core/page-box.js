@@ -1,6 +1,11 @@
 export function defaultPageBox(width,height){
  if(!Number.isFinite(width)||!Number.isFinite(height)||width<=0||height<=0)throw Error('截图尺寸无效');
- return {width:.145,height:Math.max(.001,Math.min(.25,.026*width/height)),bottom:.032,align:'center'};
+ // WPS footer preview: the 1.27cm margin guide is ABOVE the page-number
+ // text. Align the box's top to that guide and extend it into the footer,
+ // instead of placing its bottom there. Use the export page's physical scale.
+ const boxHeight=Math.max(.001,Math.min(.25,.026*width/height));
+ const pageHeight=595.28*height/width,footerGuide=1.27*72/2.54;
+ return {width:.145,height:boxHeight,bottom:Math.max(0,Math.min(.4,footerGuide/pageHeight-boxHeight)),align:'center'};
 }
 // Relative to the screenshot, never to the preview's letterbox padding.
 export function normalizePageBox(value){
@@ -23,7 +28,7 @@ export function pageBoxRect(value,width,height){
 export async function createLayeredPDF(shots,{library,renderImage,onProgress=()=>{}}){
  if(!shots.length)throw Error('没有可导出的保留截图');
  const {PDFDocument,PDFName,PDFHexString}=library,doc=await PDFDocument.create(),groups=[];
- doc.setTitle('Frame Notes Screenshots');doc.setProducer('Frame Notes 1.2.0');
+ doc.setTitle('Frame Notes Screenshots');doc.setProducer('Frame Notes 1.2.1');
  for(let i=0;i<shots.length;i++){
   const shot=shots[i],bytes=await renderImage(shot),image=await doc.embedPng(bytes);
   const width=595.28,height=width*shot.height/shot.width,page=doc.addPage([width,height]);
