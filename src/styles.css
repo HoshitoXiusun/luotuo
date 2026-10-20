@@ -73,3 +73,14 @@ html{scrollbar-gutter:stable;overflow-anchor:none}
 .gallery-help{width:100%;margin:0;color:var(--muted);font-size:10px;line-height:1.7}
 .preview-note-label{margin:10px 0 16px;font-size:11px}
 #previewNote{display:block;resize:vertical;min-height:58px;max-height:160px;font-size:12px}
+
+.pagebox-settings{border-bottom:1px solid var(--line);padding:0 13px 10px;font-size:11px}
+.pagebox-settings summary{display:flex;justify-content:space-between;gap:8px;cursor:pointer;padding:9px 0;color:var(--blue);font-weight:600}
+.pagebox-settings summary:before{content:'▸';color:var(--orange-strong)}.pagebox-settings[open] summary:before{content:'▾'}
+.pagebox-settings summary span{font-weight:400;font-size:9px;color:var(--muted);margin-left:auto}
+.pagebox-settings>label{margin:9px 0;font-size:10px}.pagebox-settings select{font-size:11px}
+.pagebox-hint{font-size:10px;color:var(--muted);margin:5px 0 10px;line-height:1.7}
+.pagebox-dimensions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}.pagebox-dimensions label{font-size:10px}.pagebox-dimensions input{padding:6px!important}
+.gallery-pdfbar{display:flex;align-items:center;gap:10px;padding:9px 13px;border-bottom:1px solid var(--line)}.gallery-pdfbar span{font-size:9px;color:var(--muted)}
+.page-number-box{position:absolute;display:block;pointer-events:none;background:white;z-index:2;outline:1px dashed #254e9f50}
+.preview-image-wrap{position:relative;width:fit-content;max-width:100%;margin:auto}.preview-pagebox{font-size:11px;margin:0 0 14px}
