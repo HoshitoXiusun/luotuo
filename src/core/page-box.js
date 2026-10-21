@@ -28,7 +28,7 @@ export function pageBoxRect(value,width,height){
 export async function createLayeredPDF(shots,{library,renderImage,onProgress=()=>{}}){
  if(!shots.length)throw Error('没有可导出的保留截图');
  const {PDFDocument,PDFName,PDFHexString}=library,doc=await PDFDocument.create(),groups=[];
- doc.setTitle('Frame Notes Screenshots');doc.setProducer('Frame Notes 1.2.1');
+ doc.setTitle('Frame Notes Screenshots');doc.setProducer('Frame Notes 1.3.0');
  for(let i=0;i<shots.length;i++){
   const shot=shots[i],bytes=await renderImage(shot),image=await doc.embedPng(bytes);
   const width=595.28,height=width*shot.height/shot.width,page=doc.addPage([width,height]);
