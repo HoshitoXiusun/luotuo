@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import fs from 'node:fs';
+import {sortPreferences} from '../src/core/shots.js';
 import {openRasterFiles} from '../src/core/openraster.js';
 const fixture={image:new Blob(['base']),overlay:new Blob(['box']),merged:new Blob(['merged']),thumbnail:new Blob(['thumb']),x:100,y:200};
 test('OpenRaster keeps exact mimetype first and the removable box above the original',async()=>{
@@ -12,7 +13,7 @@ test('OpenRaster rejects positions outside their own axis',()=>{
  assert.throws(()=>openRasterFiles(360,640,{...fixture,x:400}),/无效/);assert.throws(()=>openRasterFiles(640,360,{...fixture,y:400}),/无效/);assert.throws(()=>openRasterFiles(0,360,fixture),/无效/);
 });
 test('export preferences default to no CSV or metadata, preserve layers, and reject malformed projects',()=>{
- const context=vm.createContext({});vm.runInContext(fs.readFileSync(new URL('../src/core/project.js',import.meta.url),'utf8'),context);
+ const context=vm.createContext({sortPreferences});vm.runInContext(fs.readFileSync(new URL('../src/core/project.js',import.meta.url),'utf8'),context);
  const defaults=vm.runInContext('normalizedSettings({})',context);assert.equal(defaults.exportCSV,false);assert.equal(defaults.exportMetadata,false);assert.equal(defaults.exportLayers,true);
  const selected=vm.runInContext('normalizedSettings({exportCSV:true,exportMetadata:true,exportLayers:false})',context);assert.equal(selected.exportCSV,true);assert.equal(selected.exportMetadata,true);assert.equal(selected.exportLayers,false);assert.throws(()=>vm.runInContext('normalizedSettings({exportCSV:"yes"})',context),/导出选项/);
 });

@@ -1,11 +1,29 @@
-// Display order and display numbers share one comparator; ids never change.
-export function sortShots(shots,mode='time'){
+// Source groups stay in natural order. Direction changes order inside a source
+// group; capture-time sorting spans the whole gallery. Capture ids never change.
+export function sortShots(shots,mode='time',direction=mode==='time'?'asc':'desc'){
  const compareSource=(a,b)=>String(a?.name||'').localeCompare(String(b?.name||''),'zh-CN',{numeric:true})||(a?.size||0)-(b?.size||0)||(a?.lastModified||0)-(b?.lastModified||0);
- return [...shots].sort(mode==='capture'?(a,b)=>b.id-a.id:(a,b)=>compareSource(a.source,b.source)||(a.time||0)-(b.time||0)||a.id-b.id);
+ const sign=direction==='desc'?-1:1,created=shot=>Number.isFinite(Date.parse(shot.createdAt))?Date.parse(shot.createdAt):0;
+ return [...shots].sort(mode==='capture'?(a,b)=>sign*(created(a)-created(b)||a.id-b.id):(a,b)=>compareSource(a.source,b.source)||sign*((a.time||0)-(b.time||0)||a.id-b.id));
 }
-export function assignShotNumbers(shots,mode='time'){
- sortShots(shots,mode).forEach((shot,index)=>shot.number=index+1);
+export function assignShotNumbers(shots,mode='time',direction=mode==='time'?'asc':'desc'){
+ sortShots(shots,mode,direction).forEach((shot,index)=>{if(shot.number!==index+1)shot.number=index+1});
  return shots;
+}
+export function sortPreferences(value={}){
+ const sort=value.sort??'time',directions=value.sortDirections===undefined?{}:value.sortDirections,numberDirection=value.numberDirection===undefined?'desc':value.numberDirection;
+ if(!['time','capture'].includes(sort)||!directions||typeof directions!=='object'||Array.isArray(directions)||!['asc','desc'].includes(numberDirection))throw Error('项目排序设置无效');
+ const sortDirections={time:directions.time??'desc',capture:directions.capture??'desc'};
+ if(!Object.values(sortDirections).every(d=>['asc','desc'].includes(d)))throw Error('项目排序方向无效');
+ return {sort,sortDirections,numberDirection};
+}
+export function changeShotSort(value,mode){
+ const next=sortPreferences(value);if(!['time','capture'].includes(mode))throw Error('排序方式无效');
+ if(next.sort===mode)next.sortDirections[mode]=next.sortDirections[mode]==='desc'?'asc':'desc';
+ else{next.sort=mode;next.numberDirection=next.sortDirections[mode]}
+ return next;
+}
+export function matchesShotSource(shotSource,currentSource){
+ return !!shotSource&&!!currentSource&&['name','size','lastModified'].every(key=>shotSource[key]===currentSource[key]);
 }
 export function parseTime(value){
  const t=String(value).trim();
