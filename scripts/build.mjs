@@ -15,4 +15,4 @@ script=(await read('vendor/pdf-lib/pdf-lib.min.js'))+'\n'+script;
 script=script.replace(/<\/script/gi,'<\\/script');new Function(script);
 const html=template.replace('__SCRIPT__',()=>script);
 await fs.mkdir(path.join(root,'dist'),{recursive:true});await fs.writeFile(path.join(root,'index.html'),html);await fs.writeFile(path.join(root,'dist/index.html'),html);await fs.writeFile(path.join(root,'.nojekyll'),'');
-console.log('Built standalone Frame Notes index.html ('+Buffer.byteLength(html)+' bytes).');
+console.log('Built standalone FrameRight index.html ('+Buffer.byteLength(html)+' bytes).');

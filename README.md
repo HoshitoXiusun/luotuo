@@ -1,6 +1,8 @@
-# 帧记 · Frame Notes
+# 帧律 · FrameRight
 
-HoshitoXiusun 的独立个人视频截图、音轨与压缩网站。浅牛皮纸、蓝色与橘色界面，单文件、无后台、无远程依赖。版本 v1.4.1。
+懂点知产的猫（实习律猫版）制作的独立个人视频截图、音轨与压缩网站。浅牛皮纸、蓝色与橘色界面，单文件、无后台、无远程依赖。版本 v1.4.2。
+
+品牌英文名 FrameRight 结合 Frame（视频帧）与 Right（正确、权利）。作者署名统一为“懂点知产的猫（实习律猫版）”；当前网站由原“帧记 · Frame Notes”更名而来，旧项目与历史记录继续保留。
 
 - 顶部为“手动截取 / 范围批量截取 / 音视频工具”，音轨导出与视频压缩在第 03 项内切换并记忆上次子功能。
 - “打开项目文件”使用文件夹图标和 .lawdesk 提示；打开后显示当前项目文件名。排序 / 导出按钮保留边框、分区和清晰 SVG 下拉箭头，忙碌状态不移除图标。
@@ -82,7 +84,7 @@ npm test
 
 ## GitHub Pages
 
-仓库使用 main 分支根目录的 `index.html` 作为网站首页；`.nojekyll` 保留单文件静态内容。提交触发 **Check Frame Notes**，检查构建、离线约束及测试。
+仓库使用 main 分支根目录的 `index.html` 作为网站首页；`.nojekyll` 保留单文件静态内容。提交触发 **Check FrameRight**，检查构建、离线约束及测试。
 
 若自行 fork，可在 Settings → Pages 中设置 Deploy from a branch → main → /(root)。也附 **Publish GitHub Pages** 手动工作流，可选用 GitHub Actions 发布。详见 [GitHub Pages 官方文档](https://docs.github.com/en/pages/getting-started-with-github-pages/configuring-a-publishing-source-for-your-github-pages-site)。
 
@@ -108,3 +110,6 @@ PDF 默认一图一页、按截图集顺序导出，页面宽度 595.28pt，高�
 换算帧率建议按全片时长分档：不超过 1 分钟为 30 FPS，1–10 分钟为 25 FPS，10–60 分钟为 15 FPS，超过 1 小时为 10 FPS。它用于批量概览的时间 / 帧号换算，不是对源视频 FPS 的识别；精确源帧号应使用素材实际帧率。全片概览目标最多 120 张，按图库剩余容量收紧，秒间隔取向上的易读档位，帧间隔随之换算。
 
 `verifyV141(task, {htmlPath, videoPath, outputDir})` 位于 `scripts/verify-v141.mjs`，在专用匿名页运行，验证手填参数保护、长视频推荐 UI（模拟时长元数据）、实际帧范围出图、容量、音轨 / 压缩实际声画输出、菜单图标、项目名及离线页面。长时长模拟不证明长视频解码性能。
+
+
+品牌验证使用 `scripts/verify-branding.mjs` 的 `verifyBranding(task, {htmlPath, outputDir})`。它在专用匿名页面检查桌面 / 窄屏署名、说明窗口、实际 ZIP / PDF 元数据、旧项目格式兼容及离线页面，使用程序生成的色块图片。

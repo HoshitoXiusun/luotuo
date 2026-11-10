@@ -1,6 +1,6 @@
 {
-  "name": "frame-notes",
-  "version": "1.4.1",
+  "name": "frameright",
+  "version": "1.4.2",
   "private": true,
   "type": "module",
   "scripts": {

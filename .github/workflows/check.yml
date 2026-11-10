@@ -1,4 +1,4 @@
-name: Check Frame Notes
+name: Check FrameRight
 on: [push, pull_request, workflow_dispatch]
 permissions:
   contents: read

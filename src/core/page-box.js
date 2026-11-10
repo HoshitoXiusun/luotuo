@@ -28,13 +28,13 @@ export function pageBoxRect(value,width,height){
 export async function createLayeredPDF(shots,{library,renderImage,onProgress=()=>{}}){
  if(!shots.length)throw Error('没有可导出的保留截图');
  const {PDFDocument,PDFName,PDFHexString}=library,doc=await PDFDocument.create(),groups=[];
- doc.setTitle('Frame Notes Screenshots');doc.setProducer('Frame Notes 1.4.1');
+ doc.setTitle('FrameRight Screenshots');doc.setProducer('FrameRight 1.4.2');doc.setAuthor('懂点知产的猫（实习律猫版）');
  for(let i=0;i<shots.length;i++){
   const shot=shots[i],bytes=await renderImage(shot),image=await doc.embedPng(bytes);
   const width=595.28,height=width*shot.height/shot.width,page=doc.addPage([width,height]);
   page.drawImage(image,{x:0,y:0,width,height});const r=pageBoxRect(shot.pageBox,width,height);
   if(r){
-   const name='FrameNotesPageBox-'+String(shot.number).padStart(3,'0');
+   const name='FrameRightPageBox-'+String(shot.number).padStart(3,'0');
    const ocg=doc.context.register(doc.context.obj({Type:'OCG',Name:PDFHexString.fromText('页码白框 #'+String(shot.number).padStart(3,'0')),Usage:{View:{ViewState:'ON'},Print:{PrintState:'ON'}}}));groups.push(ocg);
    const form=doc.context.register(doc.context.flateStream(`q\n1 1 1 rg\n0 0 ${r.width} ${r.height} re f\nQ`,{Type:'XObject',Subtype:'Form',FormType:1,BBox:[0,0,r.width,r.height],Resources:{},OC:ocg}));
    const key=page.node.newXObject(name,form);
