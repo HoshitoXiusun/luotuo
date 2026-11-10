@@ -1,7 +1,19 @@
 $('previewCompatNote').hidden=!stableLivePreview;
 const appIcons=__ICONS__;
 function mountIcons(){for(const el of document.querySelectorAll('[data-icon]'))el.innerHTML=appIcons[el.dataset.icon]||appIcons['video-frames']}
-function openMode(id){if(state.busy){toast('请先完成或停止当前任务');return}if(!['manual','batch','audio','compress'].includes(id))return;state.functionId=id;for(const button of document.querySelectorAll('[data-mode]')){const active=button.dataset.mode===id;button.classList.toggle('active',active);button.setAttribute('aria-current',active?'page':'false')}$('singlePane').hidden=id!=='manual';$('batchPane').hidden=id!=='batch';$('audioPane').hidden=id!=='audio';$('compressPane').hidden=id!=='compress';if(id==='compress')state.onCompressionMode?.();document.querySelector('.shared-video-options strong').textContent=id==='compress'?'视频压缩':'定位与截取';document.querySelector('.shared-video-options .dim').textContent=id==='compress'?'清晰度 · 档位 · 本地保存':'← → 后退 / 快进 1.5 秒';$('captureBtn').hidden=id!=='manual';document.querySelector('.keyboard').hidden=id!=='manual';if(id==='batch')estimateBatch()}
+function openMode(id){
+ if(state.busy){toast('请先完成或停止当前任务');return}
+ if(id==='media')id=state.mediaTool||'audio';if(!['manual','batch','audio','compress'].includes(id))return;
+ const media=id==='audio'||id==='compress';state.functionId=id;if(media)state.mediaTool=id;
+ for(const button of document.querySelectorAll('[data-mode]')){const active=button.dataset.mode===id||(media&&button.dataset.mode==='media');button.classList.toggle('active',active);button.setAttribute('aria-current',active?'page':'false')}
+ for(const button of document.querySelectorAll('[data-media-tool]')){const active=button.dataset.mediaTool===id;button.classList.toggle('active',active);button.setAttribute('aria-pressed',String(active))}
+ $('singlePane').hidden=id!=='manual';$('batchPane').hidden=id!=='batch';$('audioPane').hidden=id!=='audio';$('compressPane').hidden=id!=='compress';$('mediaToolsNav').hidden=!media;
+ if(id==='compress')state.onCompressionMode?.();
+ document.querySelector('.shared-video-options strong').textContent=media?'音视频工具':'定位与截取';document.querySelector('.shared-video-options .dim').textContent=media?'音轨导出 · 视频压缩':'← → 后退 / 快进 1.5 秒';
+ $('captureBtn').hidden=id!=='manual';document.querySelector('.keyboard').hidden=id!=='manual';if(id==='batch')estimateBatch();
+}
+state.updateMediaControls=()=>{for(const button of document.querySelectorAll('[data-media-tool], [data-mode]'))button.disabled=state.busy};
+for(const button of document.querySelectorAll('[data-media-tool]'))button.onclick=()=>openMode(button.dataset.mediaTool);
 for(const button of document.querySelectorAll('[data-mode]'))button.onclick=()=>openMode(button.dataset.mode);
 $('aboutBtn').onclick=()=>$('about').showModal();$('closeAbout').onclick=()=>$('about').close();$('undoBtn').onclick=undoAction;$('previousPreview').onclick=()=>movePreview(-1);$('nextPreview').onclick=()=>movePreview(1);$('saveProjectBtn').onclick=saveProject;$('restoreProjectBtn').onclick=()=>$('projectInput').click();$('projectInput').onchange=e=>{restoreProject(e.target.files[0]);e.target.value=''};
 for(const id of ['quality','format','caseName','prefix','fps'])$(id).addEventListener('input',markDirty);for(const id of ['batchStart','batchEnd','batchStep','batchMode','fps'])$(id).addEventListener('input',estimateBatch);video.addEventListener('loadeddata',estimateBatch);

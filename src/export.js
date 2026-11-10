@@ -6,8 +6,8 @@ async function createShotORA(shot,s){
  const thumb=document.createElement('canvas'),scale=Math.min(1,256/shot.width,256/shot.height);thumb.width=Math.max(1,Math.round(shot.width*scale));thumb.height=Math.max(1,Math.round(shot.height*scale));thumb.getContext('2d').drawImage(merged,0,0,thumb.width,thumb.height);
  const files=openRasterFiles(shot.width,shot.height,{image,overlay:await canvasBlob(box),merged:await canvasBlob(merged),thumbnail:await canvasBlob(thumb),x,y});return zipArchive(files);
 }
-function setExportProgress(text){$('exportBtn').textContent='导出中';$('exportBtn').title=text}
-function updateExportControls(){const any=!!shotsForExport().length;$('exportBtn').disabled=state.busy||!any;if(!state.busy)$('exportBtn').textContent='导出⌄';else closeExportMenu();$('exportBtn').title=$('exportHint').textContent;for(const id of ['exportCSV','exportMetadata','exportLayers'])$(id).disabled=state.busy}
+function setExportProgress(text){$('exportLabel').textContent='导出中';$('exportBtn').title=text}
+function updateExportControls(){const any=!!shotsForExport().length;$('exportBtn').disabled=state.busy||!any;if(!state.busy)$('exportLabel').textContent='导出';else closeExportMenu();$('exportBtn').title=$('exportHint').textContent;for(const id of ['exportCSV','exportMetadata','exportLayers'])$(id).disabled=state.busy}
 const exportButton=$('exportBtn'),exportMenu=$('exportMenu');let exportCloseTimer;
 function positionExportMenu(){const r=exportButton.getBoundingClientRect(),width=168,height=exportMenu.offsetHeight;exportMenu.style.left=Math.max(8,Math.min(innerWidth-width-8,r.right-width))+'px';exportMenu.style.top=(r.bottom+height+8>innerHeight?Math.max(8,r.top-height-5):r.bottom+5)+'px'}
 function openExportMenu(focus=false){clearTimeout(exportCloseTimer);if(exportButton.disabled)return;exportMenu.hidden=false;exportButton.setAttribute('aria-expanded','true');positionExportMenu();if(focus)exportMenu.querySelector('button:not(:disabled)')?.focus()}

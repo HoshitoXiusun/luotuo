@@ -7,7 +7,7 @@ export async function verifyCompression(task,{htmlPath,videoPath,outputDir}){
  const p=task.page('p1'),results={};await fs.mkdir(outputDir,{recursive:true});
  await p.cdp('Emulation.setFocusEmulationEnabled',{enabled:true});await p.cdp('Emulation.clearDeviceMetricsOverride',{});
  try{
-  await p.goto(pathToFileURL(htmlPath).href);await p.click('[data-mode="compress"]');
+  await p.goto(pathToFileURL(htmlPath).href);await p.click('[data-mode="media"]');await p.click('[data-media-tool="compress"]');
   await p.evaluate(()=>{window.compressionErrors=[];for(const name of ['error','unhandledrejection','securitypolicyviolation'])addEventListener(name,e=>compressionErrors.push(name+':'+(e.message||e.reason?.message||e.violatedDirective)))});
   await p.setInputFiles('#compressInput',[videoPath]);await p.waitForFunction(()=>!document.getElementById('compressStart').disabled);
   const source=await p.evaluate(()=>({...compression.info}));assert(source.duration>=5&&source.duration<=10,'Use an anonymous short fixture');
