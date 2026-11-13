@@ -21,10 +21,23 @@ function positionPageBox(element,shot,frame){
 }
 const pageBoxObserver=new ResizeObserver(()=>{positionGalleryPageBoxes();refreshPreviewPageBox()});
 function positionGalleryPageBoxes(){for(const card of $('gallery').querySelectorAll('.card')){const shot=state.shots.find(s=>s.id===Number(card.dataset.id)),frame=card.querySelector('.thumb'),overlay=frame.querySelector('.page-number-box');if(overlay)positionPageBox(overlay,shot,frame)}}
+function observeGalleryCard(card,shot){
+ const frame=card.querySelector('.thumb');
+ // Unboxed screenshots need no layout observation. A subsequent edit calls
+ // refreshPageBoxes, which attaches the overlay and observer if needed.
+ let overlay=frame.querySelector('.page-number-box');
+ if(!shot.pageBox){if(overlay)overlay.hidden=true;return}
+ if(!overlay){overlay=document.createElement('span');overlay.className='page-number-box';overlay.setAttribute('aria-hidden','true');frame.append(overlay)}
+ positionPageBox(overlay,shot,frame);pageBoxObserver.observe(frame);
+}
 function refreshPageBoxes(){
- pageBoxObserver.disconnect();for(const card of $('gallery').querySelectorAll('.card')){const shot=state.shots.find(s=>s.id===Number(card.dataset.id)),frame=card.querySelector('.thumb');let overlay=frame.querySelector('.page-number-box');if(!overlay){overlay=document.createElement('span');overlay.className='page-number-box';overlay.setAttribute('aria-hidden','true');frame.append(overlay)}positionPageBox(overlay,shot,frame);pageBoxObserver.observe(frame)}
+ pageBoxObserver.disconnect();
+ const shots=new Map(state.shots.map(shot=>[shot.id,shot]));
+ for(const card of $('gallery').querySelectorAll('.card'))observeGalleryCard(card,shots.get(Number(card.dataset.id)));
  if($('preview').open)pageBoxObserver.observe($('previewImage'));
 }
+state.observeGalleryCard=observeGalleryCard;
+state.unobserveGalleryCard=card=>pageBoxObserver.unobserve(card.querySelector('.thumb'));
 function refreshPreviewPageBox(){const shot=state.shots.find(s=>s.id===state.previewId);if(!shot)return;$('previewPageBox').checked=!!shot.pageBox;positionPageBox($('previewPageBoxOverlay'),shot,$('previewImage'))}
 $('pageBoxSizing').onchange=()=>$('pageBoxCustom').hidden=$('pageBoxSizing').value!=='custom';
 $('pageBoxScope').onchange=updatePageBoxControls;$('applyPageBox').onclick=()=>changePageBoxes();$('removePageBox').onclick=()=>changePageBoxes(true);

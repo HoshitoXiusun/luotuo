@@ -28,7 +28,7 @@ export function pageBoxRect(value,width,height){
 export async function createLayeredPDF(shots,{library,renderImage,onProgress=()=>{}}){
  if(!shots.length)throw Error('没有可导出的保留截图');
  const {PDFDocument,PDFName,PDFHexString}=library,doc=await PDFDocument.create(),groups=[];
- doc.setTitle('FrameRight Screenshots');doc.setProducer('FrameRight 1.4.2');doc.setAuthor('懂点知产的猫（实习律猫版）');
+ doc.setTitle('FrameRight Screenshots');doc.setProducer('FrameRight 1.4.3');doc.setAuthor('懂点知产的猫（实习律猫版）');
  for(let i=0;i<shots.length;i++){
   const shot=shots[i],bytes=await renderImage(shot),image=await doc.embedPng(bytes);
   const width=595.28,height=width*shot.height/shot.width,page=doc.addPage([width,height]);

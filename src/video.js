@@ -77,20 +77,61 @@ async function loadFile(file){
 function seek(t){return new Promise((resolve,reject)=>{if(!state.ready)return reject(Error('请先选择视频'));const target=Math.max(0,Math.min(video.duration-0.000001,t));if(Math.abs(video.currentTime-target)<0.00001&&!video.seeking&&video.readyState>=2)return resolve();let timer=setTimeout(()=>done(Error('视频定位超时')),12000);const done=err=>{clearTimeout(timer);video.removeEventListener('seeked',ok);video.removeEventListener('error',bad);err?reject(err):resolve()};const ok=()=>{if(video.readyState>=2)done();else done(Error('视频画面尚未解码'))};const bad=()=>done(Error('视频解码失败'));video.addEventListener('seeked',ok,{once:true});video.addEventListener('error',bad,{once:true});video.currentTime=target})}
 async function navigate(t,{pause=false}={}){if(!state.ready||state.busy)return;state.busy=true;if(pause)video.pause();updateControls();try{await seek(t);syncTime()}catch(e){toast(e.message)}finally{state.busy=false;updateControls()}}
 function canvasBlob(canvas,type='image/png',quality=1){return new Promise((resolve,reject)=>canvas.toBlob(b=>b?resolve(b):reject(Error('图片生成失败，可能内存不足')),type,quality))}
-async function takeShot(requestedTime){if(state.shots.length>=200)throw Error('图库已达到 200 张，请导出并清空后继续');if(!state.ready||video.readyState<2||video.seeking)throw Error('请等待视频定位完成再截图');const rate=fps();const c=document.createElement('canvas');c.width=video.videoWidth;c.height=video.videoHeight;const t=video.currentTime;c.getContext('2d').drawImage(video,0,0);const actualRequested=requestedTime===undefined?t:requestedTime;const blob=await canvasBlob(c);const shot={id:state.nextId++,time:t,requestedTime:actualRequested,source:{...state.source},width:c.width,height:c.height,fps:rate,createdAt:new Date().toISOString(),watermark:'inherit',note:'',selected:false,decision:'keep',pageBox:null,blob,url:URL.createObjectURL(blob)};state.shots.push(shot);renumberShots();markDirty();return shot}
+function encodeShot(canvas,requestedTime){
+ if(!state.ready||video.readyState<2||video.seeking)throw Error('请等待视频定位完成再截图');
+ const width=video.videoWidth,height=video.videoHeight,rate=fps();
+ if(canvas.width!==width)canvas.width=width;
+ if(canvas.height!==height)canvas.height=height;
+ const time=video.currentTime,source={...state.source},createdAt=new Date().toISOString();
+ const context=canvas.getContext('2d');
+ context.clearRect(0,0,width,height);context.drawImage(video,0,0);
+ return canvasBlob(canvas).then(blob=>({time,requestedTime:requestedTime??time,source,width,height,fps:rate,createdAt,watermark:'inherit',note:'',selected:false,decision:'keep',pageBox:null,blob}));
+}
+function storeShot(data){
+ const shot={...data,id:state.nextId++,url:URL.createObjectURL(data.blob)};
+ state.shots.push(shot);return shot;
+}
+async function takeShot(requestedTime){
+ if(state.shots.length>=200)throw Error('图库已达到 200 张，请导出并清空后继续');
+ const shot=storeShot(await encodeShot(document.createElement('canvas'),requestedTime));
+ renumberShots();markDirty();return shot;
+}
 async function capture(){if(!state.ready||state.busy)return;state.busy=true;if($('pauseAfterCapture').checked)video.pause();updateControls();try{if(video.seeking)await seek(video.currentTime);const shot=await takeShot();$('reviewFilter').value='all';renderGallery();$('gallery').scrollTop=0;toast('已捕获截图 #'+String(shot.number).padStart(3,'0'))}catch(e){toast(e.message)}finally{state.busy=false;updateControls()}}
 function shotsForExport(){const a=state.shots.filter(s=>s.selected);return ordered((a.length?a:state.shots).filter(s=>s.decision!=='exclude'))}
 function renumberShots(){return assignShotNumbers(state.shots,$('sort').value,state.numberDirection)}
 function ordered(list){return sortShots(list,$('sort').value,state.sortDirections[$('sort').value])}
-function renderGallery(){
- renumberShots();const g=$('gallery');g.replaceChildren();const filter=$('reviewFilter').value;
- const visible=ordered(state.shots).filter(s=>filter==='all'||s.decision===filter);
+function renderGallery({incremental=false}={}){
+ renumberShots();
+ const g=$('gallery'),filter=$('reviewFilter').value;
+ const visible=ordered(state.shots).filter(s=>filter==='all'||s.decision===filter),style=settings();
+ const cards=incremental?new Map([...g.querySelectorAll('.card')].map(c=>[Number(c.dataset.id),c])):new Map();
+ if(!incremental||!visible.length)g.replaceChildren();
  if(!visible.length){const d=document.createElement('div');d.className='empty';d.innerHTML=state.shots.length?'<strong>当前筛选下没有截图</strong><p>切换筛选查看其他画面。</p>':'<div class="empty-mark">▧</div><strong>关键画面会留在这里</strong><p>截图后可随时预览、添加说明<br>并单独选择是否带时间戳。</p>';g.append(d)}
- for(const shot of visible){
+ const added=[];
+ if(visible.length){
+  const ids=new Set(visible.map(shot=>shot.id));
+  g.querySelector('.empty')?.remove();
+  for(const [id,card] of cards)if(!ids.has(id)){state.unobserveGalleryCard?.(card);card.remove()}
+  const scroll=g.scrollTop;
+  let next=g.firstElementChild;
+  for(const shot of visible){
+   let card=cards.get(shot.id);
+   if(!card){card=createGalleryCard(shot,style);added.push([card,shot])}
+   else updateCardNumber(card,shot);
+   if(card===next)next=next.nextElementSibling;else g.insertBefore(card,next);
+  }
+  g.scrollTop=scroll;
+ }
+ if($('preview').open)syncPreviewNavigation();
+ updateControls();
+ if(incremental&&visible.length){for(const [card,shot] of added)state.observeGalleryCard?.(card,shot)}
+ else state.refreshPageBoxes?.();
+}
+function createGalleryCard(shot,style){
   const card=document.createElement('article');card.className='card'+(shot.decision==='exclude'?' excluded':'')+(shot.selected?' selected':'');card.dataset.id=shot.id;card.title=shot.source.name+' · '+timeText(shot.time);
   const thumb=document.createElement('button');thumb.className='thumb';thumb.title='预览截图 #'+String(shot.number).padStart(3,'0');
   const img=document.createElement('img');img.src=shot.url;img.alt='截图 #'+String(shot.number).padStart(3,'0')+' · '+timeText(shot.time);img.loading='lazy';
-  const mark=document.createElement('span');mark.className='screen-mark';mark.textContent=stamp(shot.time);mark.hidden=!hasMark(shot);markStyle(mark,settings());mark.style.color=settings().color;
+  const mark=document.createElement('span');mark.className='screen-mark';mark.textContent=stamp(shot.time,style);mark.hidden=!hasMark(shot,style);markStyle(mark,style);mark.style.color=style.color;
   thumb.append(img,mark);thumb.onclick=()=>openPreview(shot.id);
   const info=document.createElement('div');info.className='card-info';const title=document.createElement('div');title.className='card-title';
   const check=document.createElement('label');check.className='check';const cb=document.createElement('input');cb.type='checkbox';cb.checked=shot.selected;cb.disabled=shot.decision==='exclude';cb.setAttribute('aria-label','选择截图 #'+String(shot.number).padStart(3,'0'));cb.onchange=()=>{shot.selected=cb.checked;card.classList.toggle('selected',shot.selected);updateControls()};const number=document.createElement('span');number.className='shot-number';number.textContent='#'+String(shot.number).padStart(3,'0');check.append(cb,number);card.dataset.number=shot.number;
@@ -100,13 +141,40 @@ function renderGallery(){
   const select=document.createElement('select');select.setAttribute('aria-label','截图 #'+String(shot.number).padStart(3,'0')+' 水印');for(const [val,text]of [['inherit','水印：跟随全局设置'],['on','水印：带时间戳'],['off','水印：不带时间戳']])select.add(new Option(text,val));select.value=shot.watermark;select.onchange=()=>{shot.watermark=select.value;markDirty();refreshMarks()};
   const actions=document.createElement('div');actions.className='card-footer';const decision=document.createElement('button');decision.className='decision-button'+(shot.decision==='exclude'?' is-excluded':'');decision.textContent=shot.decision==='exclude'?'○ 已排除':'✓ 保留';decision.title=shot.decision==='exclude'?'恢复为保留':'标记排除（不参与图片导出）';decision.onclick=()=>setDecision(shot.id,shot.decision==='exclude'?'keep':'exclude');
   const download=document.createElement('button');download.textContent='↓ 下载';download.disabled=shot.decision==='exclude';download.onclick=()=>downloadShot(shot);
-  const del=document.createElement('button');del.className='danger';del.textContent='删除';del.onclick=()=>removeShots([shot.id]);actions.append(decision,download,del);info.append(title,source,note,select,actions);card.append(thumb,info);g.append(card);
- }
- if($('preview').open)syncPreviewNavigation();updateControls();state.refreshPageBoxes?.();
+  const del=document.createElement('button');del.className='danger';del.textContent='删除';del.onclick=()=>removeShots([shot.id]);actions.append(decision,download,del);info.append(title,source,note,select,actions);card.append(thumb,info);return card;
 }
 function refreshMarks(){const s=settings();for(const card of $('gallery').querySelectorAll('.card')){const shot=state.shots.find(x=>x.id===Number(card.dataset.id)),mark=card.querySelector('.screen-mark');card.querySelector('select').value=shot.watermark;mark.hidden=!hasMark(shot,s);mark.textContent=stamp(shot.time,s);markStyle(mark,s);mark.style.color=s.color}syncTime();$('screenMark').style.color=s.color}
 function removeShots(ids){if(state.busy)return;const removed=state.shots.filter(s=>ids.includes(s.id));if(!removed.length)return;pushUndo({type:'remove',shots:removed});state.shots=state.shots.filter(s=>!ids.includes(s.id));renumberShots();markDirty();renderGallery()}
-async function batch(){if(!state.ready||state.busy)return;let times;try{times=currentCapturePlan().times}catch(e){toast(e.message);return}state.busy=true;state.batching=true;state.cancel=false;const wasPlaying=!video.paused;video.pause();const previous=video.currentTime;updateControls();$('batchProgress').hidden=false;$('batchProgress').max=times.length;$('batchProgress').value=0;let done=0;try{for(const t of times){if(state.cancel)break;await seek(t);if(state.cancel)break;await takeShot(t);done++;$('batchProgress').value=done;$('batchStatus').textContent=`正在截帧 ${done} / ${times.length}`;if(done%5===0){$('reviewFilter').value='all';renderGallery()}}$('batchStatus').textContent=(state.cancel?'已停止':'已完成')+` · 捕获 ${done} 张`}catch(e){$('batchStatus').textContent=`中断 · 已捕获 ${done} 张`;toast(e.message)}finally{try{await seek(previous)}catch{}state.busy=false;state.batching=false;if(wasPlaying&&!video.ended){try{await video.play()}catch{toast('浏览器未允许自动续播，请点击播放')}}$('batchProgress').hidden=true;$('reviewFilter').value='all';renderGallery();syncTime();updateControls()}}
+async function batch(){
+ if(!state.ready||state.busy)return;
+ let times;try{times=currentCapturePlan().times}catch(e){toast(e.message);return}
+ state.busy=true;state.batching=true;state.cancel=false;
+ const wasPlaying=!video.paused,previous=video.currentTime,canvases=[];
+ video.pause();updateControls();
+ $('batchProgress').hidden=false;$('batchProgress').max=times.length;$('batchProgress').value=0;
+ let done=0,lastPaint=-Infinity;
+ try{
+  await runBatchPipeline(times,{
+   seekTo:seek,cancelled:()=>state.cancel,
+   encode:(t,slot)=>encodeShot(canvases[slot]??=document.createElement('canvas'),t),
+   commit:data=>{
+    storeShot(data);done++;$('batchProgress').value=done;
+    $('batchStatus').textContent=`正在截帧 ${done} / ${times.length}`;
+    const now=performance.now();
+    if(now-lastPaint>=120){lastPaint=now;$('reviewFilter').value='all';renderGallery({incremental:true})}
+   }
+  });
+  $('batchStatus').textContent=(state.cancel?'已停止':'已完成')+` · 捕获 ${done} 张`;
+ }catch(e){$('batchStatus').textContent=`中断 · 已捕获 ${done} 张`;toast(e.message)}
+ finally{
+  for(const canvas of canvases)canvas.width=0;
+  if(done)markDirty();
+  try{await seek(previous)}catch{}
+  state.busy=false;state.batching=false;
+  if(wasPlaying&&!video.ended){try{await video.play()}catch{toast('浏览器未允许自动续播，请点击播放')}}
+  $('batchProgress').hidden=true;$('reviewFilter').value='all';renderGallery({incremental:true});syncTime();
+ }
+}
 async function output(shot,s=settings(),forcePNG=false){const c=document.createElement('canvas');c.width=shot.width;c.height=shot.height;const img=await createImageBitmap(shot.blob);const ctx=c.getContext('2d');ctx.drawImage(img,0,0);img.close();if(hasMark(shot,s)){const text=stamp(shot.time,s,true),size=Math.max(12,Math.round(c.width*s.size)),pad=Math.round(size*.5),margin=Math.round(c.width*.015);ctx.font=`500 ${size}px monospace`;const w=ctx.measureText(text).width+pad*2,h=size+pad*2;const x=s.position[1]==='l'?margin:c.width-w-margin,y=s.position[0]==='t'?margin:c.height-h-margin;ctx.fillStyle='rgba(0,0,0,.70)';ctx.fillRect(x,y,w,h);ctx.fillStyle=s.color||'#fff';ctx.textBaseline='middle';ctx.fillText(text,x+pad,y+h/2)}const blob=await canvasBlob(c,forcePNG?'image/png':'image/'+s.format,s.quality);if(!forcePNG&&blob.type!=='image/'+s.format)throw Error('此浏览器不支持选定图片格式，请改为 PNG 或 JPG');return blob}
 function safeName(value){return value.replace(/[<>:"/\\|?*\x00-\x1f]/g,'_').replace(/[. ]+$/,'').slice(0,100)||'视频截图'}
 function filename(shot,s=settings()){return `${safeName(s.prefix)}_${String(shot.number).padStart(3,'0')}_${timeText(shot.time).replace(/:/g,'-')}.${s.format==='jpeg'?'jpg':s.format}`}
@@ -126,7 +194,7 @@ async function exportZip(){
   setExportProgress(`生成 ${i+1}/${shots.length}`);files.push({name:filename(shots[i],s),blob:await output(shots[i],s)});
   if(s.exportLayers&&shots[i].pageBox)files.push({name:'图层/'+filename(shots[i],{...s,format:'png'}).replace(/\.png$/,'.ora'),blob:await createShotORA(shots[i],s)});
  }
- if(s.exportCSV||s.exportMetadata){const rows=metadata(shots,s);if(s.exportCSV)files.push({name:'截图清单.csv',blob:new Blob([csv(rows)],{type:'text/csv;charset=utf-8'})});if(s.exportMetadata)files.push({name:'元数据.json',blob:new Blob([JSON.stringify({tool:'帧律 FrameRight',author:'懂点知产的猫（实习律猫版）',version:'1.4.2',exportedAt:new Date().toISOString(),settings:s,screenshots:rows},null,2)],{type:'application/json'})})}
+ if(s.exportCSV||s.exportMetadata){const rows=metadata(shots,s);if(s.exportCSV)files.push({name:'截图清单.csv',blob:new Blob([csv(rows)],{type:'text/csv;charset=utf-8'})});if(s.exportMetadata)files.push({name:'元数据.json',blob:new Blob([JSON.stringify({tool:'帧律 FrameRight',author:'懂点知产的猫（实习律猫版）',version:'1.4.3',exportedAt:new Date().toISOString(),settings:s,screenshots:rows},null,2)],{type:'application/json'})})}
  const zip=await zipArchive(files,(i)=>setExportProgress(`打包 ${i}/${files.length}`));if(await save(zip,safeName(s.caseName||s.prefix)+'_截图材料.zip'))toast(`已导出 ${shots.length} 张截图${s.exportLayers&&shots.some(s=>s.pageBox)?'及可编辑页码框图层':''}`);
  }catch(e){toast(e.message)}finally{state.busy=false;$('zipBtn').textContent='导出为 ZIP';updateControls()}
 }
