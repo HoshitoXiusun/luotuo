@@ -4,7 +4,7 @@ const $=id=>document.getElementById(id), video=$('video');
 // Gecko/Zen: keep animated DOM overlays away from the native playing video.
 // This changes only the live preview; exported images still use hasMark()/stamp().
 const stableLivePreview=typeof CSS!=='undefined'&&CSS.supports('-moz-appearance','none');
-const state={source:null,url:null,ready:false,busy:false,cancel:false,shots:[],nextId:1,previewId:null,previewURL:null,previewSeq:0,loadSeq:0,undo:[],dirty:false,scrubbing:false,workspace:'video',functionId:'manual',sourceFile:null,audioExporting:false,audioCancel:false,sortDirections:{time:'desc',capture:'desc'},numberDirection:'desc'};
+const state={playback:defaultPlayback,source:null,url:null,ready:false,busy:false,cancel:false,shots:[],nextId:1,previewId:null,previewURL:null,previewSeq:0,loadSeq:0,undo:[],dirty:false,scrubbing:false,workspace:'video',functionId:'manual',sourceFile:null,audioExporting:false,audioCancel:false,sortDirections:{time:'desc',capture:'desc'},numberDirection:'desc'};
 video.muted=false;video.volume=.8;
 function toast(message){$('toast').textContent=message;$('toast').hidden=false;clearTimeout(toast.timer);toast.timer=setTimeout(()=>$('toast').hidden=true,4500)}
 function timeText(seconds){const ms=Math.round(Math.max(0,seconds)*1000),h=Math.floor(ms/3600000),m=Math.floor(ms/60000)%60,s=Math.floor(ms/1000)%60;return [h,m,s].map(v=>String(v).padStart(2,'0')).join(':')+'.'+String(ms%1000).padStart(3,'0')}
@@ -24,7 +24,7 @@ function syncTime(){
  const style=s.position+'|'+s.color;if(style!==liveMarkStyle){markStyle(mark,s);mark.style.color=s.color;liveMarkStyle=style}
 }
 function queueTimeSync(){if(!timeSyncFrame)timeSyncFrame=requestAnimationFrame(()=>{timeSyncFrame=0;syncTime()})}
-function updateControls(){if(!state.ready||state.busy)state.hideTimelinePreview?.();for(const id of ['playBtn','prevBtn','nextBtn','captureBtn','jumpBtn','timeline','stablePlayback','setStart','setEnd','batchBtn'])$(id).disabled=!state.ready||state.busy;for(const id of ['openBtn','pickBtn','fileInput','speed','fps','batchMode','batchStart','batchEnd','batchStep','timestampList'])$(id).disabled=state.busy;const any=state.shots.length>0;for(const id of ['csvBtn','zipBtn','clearBtn','selectAll'])$(id).disabled=!any||state.busy;const selected=state.shots.filter(s=>s.selected).length;const kept=state.shots.filter(s=>s.decision!=='exclude').length;$('reviewCounts').textContent=`保留 ${kept} · 排除 ${state.shots.length-kept}`;$('saveProjectBtn').disabled=!any||state.busy;$('restoreProjectBtn').disabled=state.busy;$('undoBtn').disabled=!state.undo.length||state.busy;$('csvBtn').disabled=!shotsForExport().length||state.busy;$('zipBtn').disabled=!shotsForExport().length||state.busy;$('exportHint').textContent=selected?`导出所选 ${shotsForExport().length} 张保留截图`:`导出全部 ${kept} 张保留截图`;$('deleteSelected').disabled=!selected||state.busy;$('selectAll').disabled=!kept||state.busy||['exclude','review'].includes($('reviewFilter').value);estimateBatch();$('count').textContent=state.shots.length;$('selectedCount').textContent='已选 '+selected+' 张';$('selectAll').checked=kept>0&&selected===kept;$('selectAll').indeterminate=selected>0&&selected<kept;$('cancelBtn').hidden=!state.busy||!state.batching;$('playBtn').textContent=video.paused?'▶ 播放':'❚❚ 暂停';updateAudioControls();updateReviewControls();state.updatePageBoxControls?.();state.updateExportControls?.();state.updateCompressionControls?.();state.updateSortControls?.();state.updateMediaControls?.()}
+function updateControls(){if(!state.ready||state.busy)state.hideTimelinePreview?.();for(const id of ['playBtn','prevBtn','nextBtn','captureBtn','jumpBtn','timeline','stablePlayback','setStart','setEnd','batchBtn'])$(id).disabled=!state.ready||state.busy;for(const id of ['openBtn','pickBtn','fileInput','speed','fps','batchMode','batchStart','batchEnd','batchStep','timestampList'])$(id).disabled=state.busy;const any=state.shots.length>0;for(const id of ['csvBtn','zipBtn','clearBtn','selectAll'])$(id).disabled=!any||state.busy;const selected=state.shots.filter(s=>s.selected).length;const kept=state.shots.filter(s=>s.decision!=='exclude').length;$('reviewCounts').textContent=`保留 ${kept} · 排除 ${state.shots.length-kept}`;$('saveProjectBtn').disabled=!any||state.busy;$('restoreProjectBtn').disabled=state.busy;$('undoBtn').disabled=!state.undo.length||state.busy;$('csvBtn').disabled=!shotsForExport().length||state.busy;$('zipBtn').disabled=!shotsForExport().length||state.busy;$('exportHint').textContent=selected?`导出所选 ${shotsForExport().length} 张保留截图`:`导出全部 ${kept} 张保留截图`;$('deleteSelected').disabled=!selected||state.busy;$('selectAll').disabled=!kept||state.busy||['exclude','review'].includes($('reviewFilter').value);estimateBatch();$('count').textContent=state.shots.length;$('selectedCount').textContent='已选 '+selected+' 张';$('selectAll').checked=kept>0&&selected===kept;$('selectAll').indeterminate=selected>0&&selected<kept;$('cancelBtn').hidden=!state.busy||!state.batching;$('playBtn').textContent=video.paused?'▶ 播放':'❚❚ 暂停';updateAudioControls();updateReviewControls();updateShortcutControls();state.updatePageBoxControls?.();state.updateExportControls?.();state.updateCompressionControls?.();state.updateSortControls?.();state.updateMediaControls?.()}
 // Listen before assigning src/load(): cached local media can become ready immediately.
 // Replacing a source removes the old listeners and timer instead of letting them
 // observe the next source or hide its preview after the old timeout.
@@ -64,7 +64,7 @@ async function loadFile(file){
   state.ready=true;$('timeline').max=video.duration;$('duration').textContent=timeText(video.duration);
   const meta=`${video.videoWidth} × ${video.videoHeight} · ${(file.size/1048576).toFixed(1)} MB`;
   $('videoMeta').textContent=meta;$('videoMeta').title=meta;
-  $('batchStart').value='';$('batchEnd').value='';$('timestampList').value='';toast('视频已载入，按 Enter 开始截图');
+  $('batchStart').value='';$('batchEnd').value='';$('timestampList').value='';toast('视频已载入');
  }catch(e){
   if(seq!==state.loadSeq)return;
   state.ready=false;video.hidden=true;$('dropzone').classList.remove('has-video');$('dropPrompt').hidden=false;
@@ -93,7 +93,7 @@ function storeShot(data){
  state.shots.push(shot);return shot;
 }
 async function takeShot(requestedTime){
- if(state.shots.length>=200)throw Error('图库已达到 200 张，请导出并清空后继续');
+ if(state.shots.length>=GALLERY_LIMIT)throw Error(`图库已达到 ${GALLERY_LIMIT} 张，请导出并减少截图后继续`);
  const shot=storeShot(await encodeShot(document.createElement('canvas'),requestedTime));
  renumberShots();markDirty();return shot;
 }
@@ -201,7 +201,7 @@ async function exportZip(){
   setExportProgress(`生成 ${i+1}/${shots.length}`);files.push({name:filename(shots[i],s),blob:await output(shots[i],s)});
   if(s.exportLayers&&shots[i].pageBox)files.push({name:'图层/'+filename(shots[i],{...s,format:'png'}).replace(/\.png$/,'.ora'),blob:await createShotORA(shots[i],s)});
  }
- if(s.exportCSV||s.exportMetadata){const rows=metadata(shots,s);if(s.exportCSV)files.push({name:'截图清单.csv',blob:new Blob([csv(rows)],{type:'text/csv;charset=utf-8'})});if(s.exportMetadata)files.push({name:'元数据.json',blob:new Blob([JSON.stringify({tool:'帧律 FrameRight',author:'懂点知产的猫（实习律猫版）',version:'1.4.4',exportedAt:new Date().toISOString(),settings:s,screenshots:rows},null,2)],{type:'application/json'})})}
+ if(s.exportCSV||s.exportMetadata){const rows=metadata(shots,s);if(s.exportCSV)files.push({name:'截图清单.csv',blob:new Blob([csv(rows)],{type:'text/csv;charset=utf-8'})});if(s.exportMetadata)files.push({name:'元数据.json',blob:new Blob([JSON.stringify({tool:'帧律 FrameRight',author:'懂点知产的猫（实习律猫版）',version:'1.4.5',exportedAt:new Date().toISOString(),settings:s,screenshots:rows},null,2)],{type:'application/json'})})}
  const zip=await zipArchive(files,(i)=>setExportProgress(`打包 ${i}/${files.length}`));if(await save(zip,safeName(s.caseName||s.prefix)+'_截图材料.zip'))toast(`已导出 ${shots.length} 张截图${s.exportLayers&&shots.some(s=>s.pageBox)?'及可编辑页码框图层':''}`);
  }catch(e){toast(e.message)}finally{state.busy=false;$('zipBtn').textContent='导出为 ZIP';updateControls()}
 }
@@ -216,11 +216,24 @@ $('reviewFilter').onchange=renderGallery;$('selectAll').onchange=()=>{for(const 
 $('helpBtn').onclick=()=>$('help').showModal();$('closeHelp').onclick=()=>$('help').close();$('closePreview').onclick=()=>$('preview').close();$('preview').onclose=()=>{state.previewSeq++;if(state.previewURL)URL.revokeObjectURL(state.previewURL);state.previewURL=null};$('previewWatermark').onchange=()=>{const shot=state.shots.find(s=>s.id===state.previewId);if(shot){shot.watermark=$('previewWatermark').value;markDirty();refreshMarks();openPreview(shot.id)}};$('previewDownload').onclick=()=>{const shot=state.shots.find(s=>s.id===state.previewId);if(shot)downloadShot(shot)};$('copyBtn').onclick=async()=>{try{if(!navigator.clipboard?.write||typeof ClipboardItem==='undefined')throw Error('当前浏览器环境不支持复制图片，请下载 PNG 后复制');const shot=state.shots.find(s=>s.id===state.previewId);await navigator.clipboard.write([new ClipboardItem({'image/png':await output(shot,settings(),true)})]);toast('图片已复制')}catch(e){toast(e.message)}};
 document.addEventListener('keydown',e=>{
  const active=document.activeElement;
- if(e.defaultPrevented||active?.isContentEditable||document.querySelector('dialog[open]')||e.ctrlKey||e.metaKey||e.altKey||state.busy||state.workspace!=='video')return;
+ if(e.defaultPrevented||e.isComposing||active?.isContentEditable||document.querySelector('dialog[open]')||e.ctrlKey||e.metaKey||e.altKey||e.shiftKey||!state.ready||state.busy||state.workspace!=='video')return;
  if(['INPUT','TEXTAREA','SELECT'].includes(active?.tagName)&&active.id!=='timeline')return;
- if(e.key==='ArrowLeft'||e.key==='ArrowRight'){e.preventDefault();navigate(video.currentTime+(e.key==='ArrowLeft'?-1.5:1.5));return}
- if(['INPUT','BUTTON'].includes(active?.tagName))return;
- if(e.code==='Space'){e.preventDefault();togglePlay()}else if(e.key.toLowerCase()==='m'){e.preventDefault();setPlaybackMuted(!video.muted)}else if(e.key==='Enter'&&state.functionId==='manual'){e.preventDefault();capture()}
+ if(active?.closest?.('[role="menu"]'))return;
+ const {keys,interval}=state.playback,key=e.key.toLowerCase();
+ const jump=key===keys.back||e.key==='ArrowLeft'?-interval:key===keys.forward||e.key==='ArrowRight'?interval:0;
+ if(jump){e.preventDefault();navigate(video.currentTime+jump);return}
+ if([keys.slower,keys.faster,keys.normal].includes(key)){
+  e.preventDefault();changePlaybackSpeed(key===keys.normal?0:key===keys.slower?-1:1);return;
+ }
+ if(key===keys.bookmark||key===keys.return||key===keys.capture){
+  e.preventDefault();
+  if(!e.repeat){if(key===keys.bookmark)saveVideoBookmark();else if(key===keys.return)returnToBookmark();else capture();}
+  return;
+ }
+ if(['INPUT','BUTTON','A','SUMMARY'].includes(active?.tagName))return;
+ if(e.code==='Space'){e.preventDefault();if(!e.repeat)togglePlay()}
+ else if(key==='m'){e.preventDefault();if(!e.repeat)setPlaybackMuted(!video.muted)}
+ else if(e.key==='Enter'&&state.functionId==='manual'){e.preventDefault();if(!e.repeat)capture()}
 });window.addEventListener('beforeunload',e=>{if(state.dirty||state.busy){e.preventDefault();e.returnValue=''}});
 
 // View changes only CSS; preserve selection, notes, ordering and scroll position.

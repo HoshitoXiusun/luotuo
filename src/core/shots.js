@@ -1,3 +1,5 @@
+export const GALLERY_LIMIT=500;
+
 // Source groups stay in natural order. Direction changes order inside a source
 // group; capture-time sorting spans the whole gallery. Capture ids never change.
 export function sortShots(shots,mode='time',direction=mode==='time'?'asc':'desc'){
@@ -33,7 +35,7 @@ export function parseTime(value){
  if(a[1]>=60||a[2]>=60)return NaN;
  return a[0]*3600+a[1]*60+a[2];
 }
-export function createCapturePlan({mode,start,end,step,frameRate,duration,capacity=200}){
+export function createCapturePlan({mode,start,end,step,frameRate,duration,capacity=GALLERY_LIMIT}){
  if(!Number.isFinite(frameRate)||frameRate<1||frameRate>240)throw Error('步进帧率须在 1–240 之间');
  if(!['time','frame'].includes(mode))throw Error('截图模式无效');
  if(String(step).trim()==='')throw Error('请填写间隔');
@@ -49,11 +51,11 @@ export function createCapturePlan({mode,start,end,step,frameRate,duration,capaci
  const quotient=(b-a)/delta;
  const count=emptyEnd&&mode==='time'?Math.max(1,Math.ceil(quotient-1e-10)):Math.floor(quotient+1e-8)+1;
  if(count<1)throw Error('该范围内没有可截取的画面');
- if(count>200||count>capacity)throw Error(`预计 ${count} 张，超过图库剩余容量 ${capacity} 张；请缩小范围或增大间隔`);
+ if(count>GALLERY_LIMIT||count>capacity)throw Error(`预计 ${count} 张，超过图库剩余容量 ${capacity} 张；请缩小范围或增大间隔`);
  return {count,times:Array.from({length:count},(_,i)=>(a+i*delta)/factor)};
 }
 
-export function createTimestampPlan(input, duration, capacity=200) {
+export function createTimestampPlan(input, duration, capacity=GALLERY_LIMIT) {
  if (!Number.isFinite(duration) || duration<=0) throw Error('视频时长无效');
  const tokens=String(input).split(/[\s,，、;；]+/u).filter(Boolean);
  if (!tokens.length) throw Error('请填写至少一个时间点');
@@ -65,6 +67,6 @@ export function createTimestampPlan(input, duration, capacity=200) {
   unique.add(time);
  }
  const times=[...unique].sort((a,b)=>a-b);
- if (times.length>Math.min(200,capacity)) throw Error(`预计 ${times.length} 张，超过图库剩余容量 ${capacity} 张`);
+ if (times.length>Math.min(GALLERY_LIMIT,capacity)) throw Error(`预计 ${times.length} 张，超过图库剩余容量 ${capacity} 张`);
  return {times,count:times.length,duplicates:tokens.length-times.length};
 }
