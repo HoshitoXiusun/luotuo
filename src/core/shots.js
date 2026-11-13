@@ -52,3 +52,19 @@ export function createCapturePlan({mode,start,end,step,frameRate,duration,capaci
  if(count>200||count>capacity)throw Error(`预计 ${count} 张，超过图库剩余容量 ${capacity} 张；请缩小范围或增大间隔`);
  return {count,times:Array.from({length:count},(_,i)=>(a+i*delta)/factor)};
 }
+
+export function createTimestampPlan(input, duration, capacity=200) {
+ if (!Number.isFinite(duration) || duration<=0) throw Error('视频时长无效');
+ const tokens=String(input).split(/[\s,，、;；]+/u).filter(Boolean);
+ if (!tokens.length) throw Error('请填写至少一个时间点');
+ const unique=new Set();
+ for (const [index,token] of tokens.entries()) {
+  const time=parseTime(token.replaceAll('：',':'));
+  if (!Number.isFinite(time)) throw Error(`第 ${index+1} 个时间点无效：${token.slice(0,40)}`);
+  if (time>=duration) throw Error(`第 ${index+1} 个时间点须小于视频时长：${token.slice(0,40)}`);
+  unique.add(time);
+ }
+ const times=[...unique].sort((a,b)=>a-b);
+ if (times.length>Math.min(200,capacity)) throw Error(`预计 ${times.length} 张，超过图库剩余容量 ${capacity} 张`);
+ return {times,count:times.length,duplicates:tokens.length-times.length};
+}

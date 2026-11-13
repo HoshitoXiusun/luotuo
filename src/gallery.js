@@ -36,10 +36,10 @@ function updateCardNumber(card,shot){
  if(Number(card.dataset.number)===shot.number)return;card.dataset.number=shot.number;const number=String(shot.number).padStart(3,'0');card.querySelector('.shot-number').textContent='#'+number;card.querySelector('.check input').setAttribute('aria-label','选择截图 #'+number);card.querySelector('.thumb').title='预览截图 #'+number;card.querySelector('.thumb img').alt='截图 #'+number+' · '+timeText(shot.time);card.querySelector('.card-note').setAttribute('aria-label','截图 #'+number+' 备注');card.querySelector('select').setAttribute('aria-label','截图 #'+number+' 水印');
 }
 function reorderGallery(){
- const gallery=$('gallery'),filter=$('reviewFilter').value,visible=ordered(state.shots).filter(s=>filter==='all'||s.decision===filter),cards=new Map([...gallery.querySelectorAll('.card')].map(card=>[Number(card.dataset.id),card]));
+ const gallery=$('gallery'),filter=$('reviewFilter').value,visible=ordered(state.shots).filter(s=>matchesGalleryFilter(s,filter)),cards=new Map([...gallery.querySelectorAll('.card')].map(card=>[Number(card.dataset.id),card]));
  if(cards.size!==visible.length||visible.some(shot=>!cards.has(shot.id))){renderGallery();return}
  const scroll=gallery.scrollTop;let next=gallery.firstElementChild;
- for(const shot of visible){const card=cards.get(shot.id);updateCardNumber(card,shot);if(card===next)next=next.nextElementSibling;else gallery.insertBefore(card,next)}
+ for(const shot of visible){const card=cards.get(shot.id);updateCardNumber(card,shot);updateReviewCard(card,shot);if(card===next)next=next.nextElementSibling;else gallery.insertBefore(card,next)}
  gallery.scrollTop=scroll;if($('preview').open)syncPreviewNavigation();updateControls();state.refreshPageBoxes?.();
 }
 function selectShotSort(mode){
