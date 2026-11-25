@@ -42,7 +42,7 @@ def archive(name, entries):
   for local, archived in entries:
    assert bundle.read(archived)==(root/local).read_bytes()
 archive(args['sourceZip'],[(name,name) for name in args['source']])
-archive(args['staticZip'],[('index.html','index.html'),('docs/国内离线与部署.txt','使用与部署说明.txt')])
+archive(args['staticZip'],[('index.html','index.html'),('docs/国内离线与部署.txt','使用与部署说明.txt')]+[(name,name) for name in ['favicon.svg','favicon.ico','favicon-32.png','apple-touch-icon.png']])
 `;
 const processResult=spawnSync('python3',['-c',python],{input:JSON.stringify({root,output,source,sourceZip,staticZip}),encoding:'utf8'});
 if(processResult.status!==0)throw Error(processResult.stderr||'发布包生成失败');

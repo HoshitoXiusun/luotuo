@@ -18,7 +18,7 @@ async function saveProject(){
  const s=settings(),revision=state.revision||0,encoder=new TextEncoder();
  try{
   normalizedSettings(s);
-  const project={kind:'lawdesk.video-project',version:1,appVersion:'frameright-1.5.0',savedAt:new Date().toISOString(),settings:s};
+  const project={kind:'lawdesk.video-project',version:1,appVersion:'frameright-1.5.1',savedAt:new Date().toISOString(),settings:s};
   const parts=[encoder.encode(JSON.stringify(project).slice(0,-1)+',"shots":[')];
   let bytes=parts[0].byteLength+2;
   for(let i=0;i<snapshot.length;i++){

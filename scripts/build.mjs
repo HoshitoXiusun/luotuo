@@ -4,6 +4,8 @@ import {fileURLToPath} from 'node:url';
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..'),read=name=>fs.readFile(path.join(root,name),'utf8');
 let template=await read('src/index.html');const css=await read('src/styles.css');
 const csp="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src blob: data:; media-src blob:; connect-src 'none'; worker-src blob:; object-src 'none'; base-uri 'none'; form-action 'none'";
+const iconURI=async(name,type)=>'data:'+type+';base64,'+(await fs.readFile(path.join(root,'src/assets',name))).toString('base64');
+template=template.replace('__FAVICON_PNG__',await iconURI('favicon-32.png','image/png')).replace('__FAVICON_SVG__',await iconURI('favicon.svg','image/svg+xml')).replace('__TOUCH_ICON__',await iconURI('apple-touch-icon.png','image/png'));
 const license=(await read('LICENSE-Docsy')).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 const pdfLicense=(await read('vendor/pdf-lib/LICENSE.md')).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 template=template.replace('__CSS__',()=>css).replace('__CSP__',csp).replace('__LICENSE__',()=>license).replace('__PDF_LICENSE__',()=>pdfLicense);
@@ -16,3 +18,5 @@ script=script.replace(/<\/script/gi,'<\\/script');new Function(script);
 const html=template.replace('__SCRIPT__',()=>script);
 await fs.mkdir(path.join(root,'dist'),{recursive:true});await fs.writeFile(path.join(root,'index.html'),html);await fs.writeFile(path.join(root,'dist/index.html'),html);await fs.writeFile(path.join(root,'.nojekyll'),'');
 console.log('Built standalone FrameRight index.html ('+Buffer.byteLength(html)+' bytes).');
+
+for(const name of ['favicon.svg','favicon.ico','favicon-32.png','apple-touch-icon.png']){await fs.copyFile(path.join(root,'src/assets',name),path.join(root,name));await fs.copyFile(path.join(root,'src/assets',name),path.join(root,'dist',name))}
