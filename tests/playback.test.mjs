@@ -13,7 +13,7 @@ function harness({nativeSync=false,gecko=false}={}){
   get currentTime(){return time},set currentTime(t){time=t;queueMicrotask(()=>{for(const fn of [...listeners.seeked??[]])fn()})}};
  const element=id=>{if(!elements.has(id))elements.set(id,{id,tagName:'INPUT',value:id==='fps'?'25':id==='volume'?'80':'',textContent:'',checked:false,hidden:false,disabled:false,style:{},classList:{add(){},remove(){}},addEventListener(){}});return elements.get(id)};
  elements.set('video',video);const keyboard=[];
- const context=vm.createContext({document:{getElementById:element,activeElement:{tagName:'BODY'},querySelector:()=>null,addEventListener:(name,fn)=>{if(name==='keydown')keyboard.push(fn)}},window:{addEventListener(){}},defaultPlayback,setTimeout,clearTimeout,queueMicrotask,console,Blob,URL,Date,CSS:{supports:()=>gecko},fileName:name=>name,getExtension:()=>'.webm'});
+ const context=vm.createContext({document:{getElementById:element,activeElement:{tagName:'BODY'},querySelector:()=>null,addEventListener:(name,fn)=>{if(name==='keydown')keyboard.push(fn)}},window:{addEventListener(){}},defaultPlayback,currentCaptureOptions:()=>({}),setTimeout,clearTimeout,queueMicrotask,console,Blob,URL,Date,CSS:{supports:()=>gecko},fileName:name=>name,getExtension:()=>'.webm'});
  vm.runInContext(videoSource+'\n'+audioSource+'\nstate.ready=true;updateControls=()=>{};'+(nativeSync?'':'syncTime=()=>{};'),context);
  return{video,element,context,listeners,run:code=>vm.runInContext(code,context),key:async(key,active={tagName:'BODY'})=>{context.document.activeElement=active;const e={key,preventDefault(){this.defaultPrevented=true}};keyboard[0](e);await new Promise(resolve=>setImmediate(resolve));return e}};
 }

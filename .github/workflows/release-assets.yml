@@ -1,0 +1,64 @@
+name: Publish Release Assets
+on:
+  push:
+    branches: [main]
+    paths: [package.json]
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: release-assets
+  cancel-in-progress: false
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+      - run: npm run build
+      - run: npm run check
+      - run: npm test
+      - run: node scripts/package-release.mjs
+      - name: Publish version with offline, source and static assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_COMMIT: ${{ github.sha }}
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          TAG="v$VERSION"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            git fetch origin "refs/tags/$TAG:refs/tags/$TAG"
+            test "$(git rev-list -n 1 "$TAG")" = "$RELEASE_COMMIT"
+            EXISTING=$(gh release view "$TAG" --json assets --jq '.assets[].name')
+            VERIFY_DIR=$(mktemp -d)
+            for FILE in release-assets/FrameRight-v"$VERSION"-* release-assets/SHA256SUMS.txt; do
+              NAME=$(basename "$FILE")
+              if printf '%s\n' "$EXISTING" | grep -Fxq "$NAME"; then
+                gh release download "$TAG" --pattern "$NAME" --dir "$VERIFY_DIR"
+                cmp "$FILE" "$VERIFY_DIR/$NAME"
+              else
+                gh release upload "$TAG" "$FILE"
+              fi
+            done
+            exit 0
+          fi
+          if git rev-parse --verify "refs/tags/$TAG" >/dev/null 2>&1; then
+            test "$(git rev-list -n 1 "$TAG")" = "$RELEASE_COMMIT"
+          fi
+          node --input-type=module <<'JS'
+          import fs from 'node:fs';
+          const {version}=JSON.parse(fs.readFileSync('package.json','utf8'));
+          const changelog=fs.readFileSync('CHANGELOG.md','utf8');
+          const heading='## ['+version+']';
+          const start=changelog.indexOf(heading);
+          if(start<0)throw Error('Version is missing from CHANGELOG.md');
+          const next=changelog.indexOf('\n## [',start+heading.length);
+          const body=changelog.slice(start,next<0?undefined:next).trim();
+          fs.writeFileSync('/tmp/frameright-release-notes.md',body+'\n\nAssets 包含离线 HTML、网站源码、静态部署包和 SHA-256 校验文件。\n');
+          JS
+          gh release create "$TAG" --target "$RELEASE_COMMIT" --title "帧律 FrameRight $TAG" --notes-file /tmp/frameright-release-notes.md "release-assets/FrameRight-v$VERSION-offline.html" "release-assets/FrameRight-v$VERSION-source.zip" "release-assets/FrameRight-v$VERSION-static.zip" release-assets/SHA256SUMS.txt

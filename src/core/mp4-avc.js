@@ -185,7 +185,9 @@ export function planAvcGroups(track,times) {
    const separateCost=subset.reduce((sum,target)=>sum+target.sample-start+1,0);
    // A fresh decoder costs time. Prefer the resident player for short GOP prefixes
    // and only switch when a group reuses substantial decode work.
-   if (subset.length>=3 && decodeCount>=60 && separateCost>=decodeCount*3) {
+   const smallFrame=track.width*track.height<=640*360;
+   const enoughWork=decodeCount>=60||(smallFrame&&subset.length>=12&&decodeCount>=12);
+   if (subset.length>=3 && enoughWork && separateCost>=decodeCount*3) {
     eligible.set(subset[0].time,{start,end,targets:subset});
    }
   }

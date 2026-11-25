@@ -1,5 +1,4 @@
-// Gallery-only changes reuse images and their Blob URLs. Display direction is
-// independent of the numbering direction fixed by the last basis change.
+// Sorting reuses images and Blob URLs; numbers follow the current gallery order.
 function shotTimeLink(shot,label=timeText(shot.time)){
  const link=document.createElement('a');link.className='shot-time-link';link.href='#dropzone';link.textContent=label;link.title='跳转到视频 '+timeText(shot.time);link.setAttribute('aria-label',link.title);
  link.onclick=e=>{e.preventDefault();e.stopPropagation();jumpToShot(shot.id).catch(error=>toast(error.message))};return link;
@@ -29,25 +28,37 @@ function positionSortMenu(){const r=sortButton.getBoundingClientRect(),width=sor
 function closeSortMenu(){sortMenu.hidden=true;sortButton.setAttribute('aria-expanded','false')}
 function openSortMenu(focus=false){if(state.busy)return;closeExportMenu();sortMenu.hidden=false;sortButton.setAttribute('aria-expanded','true');positionSortMenu();if(focus)sortMenu.querySelector('[aria-checked="true"]')?.focus()}
 function updateSortControls(){
- const mode=sortButton.value,direction=state.sortDirections[mode],label=mode==='time'?'视频时间':'截图时间';sortButton.disabled=state.busy;$('sortLabel').textContent=label;$('sortDirection').textContent=direction==='desc'?'↓':'↑';sortButton.setAttribute('aria-label',`截图排序：${label}，${direction==='desc'?'倒序':'正序'}`);sortButton.title='重复选择当前排序可切换正序 / 倒序，编号保持不变';
+ const mode=sortButton.value,direction=state.sortDirections[mode],label=mode==='time'?'视频时间':'截图时间';sortButton.disabled=state.busy;$('sortLabel').textContent=label;$('sortDirection').textContent=direction==='desc'?'↓':'↑';sortButton.setAttribute('aria-label',`截图排序：${label}，${direction==='desc'?'倒序':'正序'}`);sortButton.title='选择排序依据；顺序与编号同步更新';const directionButton=$('sortDirection');directionButton.disabled=state.busy;directionButton.title=`当前${direction==='desc'?'倒序':'正序'}，点击切换${direction==='desc'?'正序':'倒序'}并同步编号`;directionButton.setAttribute('aria-label',directionButton.title);
  for(const item of sortMenu.querySelectorAll('[data-sort]')){item.setAttribute('aria-checked',String(item.dataset.sort===mode));item.querySelector('.sort-option-direction').textContent=state.sortDirections[item.dataset.sort]==='desc'?'↓':'↑'}if(state.busy)closeSortMenu();
 }
 function updateCardNumber(card,shot){
  if(Number(card.dataset.number)===shot.number)return;card.dataset.number=shot.number;const number=String(shot.number).padStart(3,'0');card.querySelector('.shot-number').textContent='#'+number;card.querySelector('.check input').setAttribute('aria-label','选择截图 #'+number);card.querySelector('.thumb').title='预览截图 #'+number;card.querySelector('.thumb img').alt='截图 #'+number+' · '+timeText(shot.time);card.querySelector('.card-note').setAttribute('aria-label','截图 #'+number+' 备注');card.querySelector('select').setAttribute('aria-label','截图 #'+number+' 水印');
 }
-function reorderGallery(){
- const gallery=$('gallery'),filter=$('reviewFilter').value,visible=ordered(state.shots).filter(s=>matchesGalleryFilter(s,filter)),cards=new Map([...gallery.querySelectorAll('.card')].map(card=>[Number(card.dataset.id),card]));
- if(cards.size!==visible.length||visible.some(shot=>!cards.has(shot.id))){renderGallery();return}
- const scroll=gallery.scrollTop;let next=gallery.firstElementChild;
- for(const shot of visible){const card=cards.get(shot.id);updateCardNumber(card,shot);updateReviewCard(card,shot);if(card===next)next=next.nextElementSibling;else gallery.insertBefore(card,next)}
- gallery.scrollTop=scroll;if($('preview').open)syncPreviewNavigation();updateControls();state.refreshPageBoxes?.();
-}
+function reorderGallery(){galleryPage=0;renderGallery({incremental:true})}
+
 function selectShotSort(mode){
- if(state.busy)return;const next=changeShotSort({sort:sortButton.value,sortDirections:state.sortDirections,numberDirection:state.numberDirection},mode),basisChanged=next.sort!==sortButton.value;sortButton.value=next.sort;state.sortDirections=next.sortDirections;state.numberDirection=next.numberDirection;if(basisChanged)renumberShots();markDirty();closeSortMenu();reorderGallery();sortButton.focus({preventScroll:true});
+ if(state.busy)return;const next=changeShotSort({sort:sortButton.value,sortDirections:state.sortDirections,numberDirection:state.numberDirection},mode);sortButton.value=next.sort;state.sortDirections=next.sortDirections;state.numberDirection=next.numberDirection;renumberShots();markDirty();closeSortMenu();reorderGallery();sortButton.focus({preventScroll:true});
 }
 for(const item of sortMenu.querySelectorAll('[data-sort]'))item.onclick=()=>selectShotSort(item.dataset.sort);
 sortButton.onclick=()=>sortMenu.hidden?openSortMenu():closeSortMenu();
+$('sortDirection').onclick=()=>{selectShotSort(sortButton.value);$('sortDirection').focus({preventScroll:true})};
 sortButton.onkeydown=e=>{if(e.key==='ArrowDown'||e.key==='ArrowUp'){e.preventDefault();openSortMenu(true)}};
 sortMenu.onkeydown=e=>{const items=[...sortMenu.querySelectorAll('button')];if(e.key==='ArrowDown'||e.key==='ArrowUp'){e.preventDefault();items[(items.indexOf(document.activeElement)+(e.key==='ArrowDown'?1:-1)+items.length)%items.length].focus()}else if(e.key==='Home'||e.key==='End'){e.preventDefault();items[e.key==='Home'?0:items.length-1].focus()}else if(e.key==='Escape'){e.preventDefault();closeSortMenu();sortButton.focus()}};
 document.addEventListener('pointerdown',e=>{if(!sortMenu.contains(e.target)&&!sortButton.contains(e.target))closeSortMenu()});document.addEventListener('focusin',e=>{if(!sortMenu.contains(e.target)&&!sortButton.contains(e.target))closeSortMenu()});document.addEventListener('keydown',e=>{if(e.key==='Escape')closeSortMenu()});window.addEventListener('resize',closeSortMenu);window.addEventListener('scroll',()=>{if(!sortMenu.hidden)positionSortMenu()},true);
 state.updateSortControls=updateSortControls;
+
+let galleryPage=0;
+const GALLERY_PAGE_SIZE=100;
+function galleryPageShots(shots){
+ const pages=Math.max(1,Math.ceil(shots.length/GALLERY_PAGE_SIZE));
+ galleryPage=Math.min(galleryPage,pages-1);
+ const start=galleryPage*GALLERY_PAGE_SIZE;
+ $('galleryPageLabel').textContent=shots.length?`${start+1}–${Math.min(shots.length,start+GALLERY_PAGE_SIZE)} / ${shots.length}`:'0 张';
+ $('galleryPageLabel').title=`图片预算 ${(retainedImageBytes()/1048576).toFixed(1)} / 512 MB`;
+ $('galleryPrevious').disabled=galleryPage===0;
+ $('galleryNext').disabled=galleryPage>=pages-1;
+ return shots.slice(start,start+GALLERY_PAGE_SIZE);
+}
+function changeGalleryPage(delta){galleryPage+=delta;renderGallery();$('gallery').scrollTop=0}
+$('galleryPrevious').onclick=()=>changeGalleryPage(-1);
+$('galleryNext').onclick=()=>changeGalleryPage(1);

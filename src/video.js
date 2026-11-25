@@ -9,7 +9,7 @@ video.muted=false;video.volume=.8;
 function toast(message){$('toast').textContent=message;$('toast').hidden=false;clearTimeout(toast.timer);toast.timer=setTimeout(()=>$('toast').hidden=true,4500)}
 function timeText(seconds){const ms=Math.round(Math.max(0,seconds)*1000),h=Math.floor(ms/3600000),m=Math.floor(ms/60000)%60,s=Math.floor(ms/1000)%60;return [h,m,s].map(v=>String(v).padStart(2,'0')).join(':')+'.'+String(ms%1000).padStart(3,'0')}
 function fps(){const v=Number($('fps').value);if(!Number.isFinite(v)||v<1||v>240)throw Error('步进帧率须在 1–240 之间');return v}
-function settings(){return {frameRate:Number($('fps').value),color:$('stampColor').value,watermark:$('watermark').checked,mode:$('stampMode').value,position:$('stampPosition').value,size:Number($('stampSize').value)/100,start:$('recordStart').value,format:$('format').value,quality:Number($('quality').value)/100,caseName:$('caseName').value.trim(),prefix:$('prefix').value.trim()||'视频截图',sort:$('sort').value,sortDirections:{...state.sortDirections},numberDirection:state.numberDirection,exportCSV:$('exportCSV').checked,exportMetadata:$('exportMetadata').checked,exportLayers:$('exportLayers').checked}}
+function settings(){return {...currentCaptureOptions(),frameRate:Number($('fps').value),color:$('stampColor').value,watermark:$('watermark').checked,mode:$('stampMode').value,position:$('stampPosition').value,size:Number($('stampSize').value)/100,start:$('recordStart').value,format:$('format').value,quality:Number($('quality').value)/100,caseName:$('caseName').value.trim(),prefix:$('prefix').value.trim()||'视频截图',sort:$('sort').value,sortDirections:{...state.sortDirections},numberDirection:state.numberDirection,exportCSV:$('exportCSV').checked,exportMetadata:$('exportMetadata').checked,exportLayers:$('exportLayers').checked}}
 function hasMark(shot,s=settings()){return shot.watermark==='on'||(shot.watermark==='inherit'&&s.watermark)}
 function stamp(t,s=settings(),strict=false){if(s.mode==='elapsed')return '视频时间 '+timeText(t);const date=new Date(s.start);if(!s.start||!Number.isFinite(date.getTime())){if(strict)throw Error('请填写有效的录像起始时间，或改为「视频内时间」');return '请填写录像起始时间'}const d=new Date(date.getTime()+Math.round(t*1000));return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')} ${[d.getHours(),d.getMinutes(),d.getSeconds()].map(v=>String(v).padStart(2,'0')).join(':')}.${String(d.getMilliseconds()).padStart(3,'0')}`}
 function markStyle(el,s){el.style.top=s.position[0]==='t'?'7px':'auto';el.style.bottom=s.position[0]==='b'?'7px':'auto';el.style.left=s.position[1]==='l'?'7px':'auto';el.style.right=s.position[1]==='r'?'7px':'auto'}
@@ -24,7 +24,7 @@ function syncTime(){
  const style=s.position+'|'+s.color;if(style!==liveMarkStyle){markStyle(mark,s);mark.style.color=s.color;liveMarkStyle=style}
 }
 function queueTimeSync(){if(!timeSyncFrame)timeSyncFrame=requestAnimationFrame(()=>{timeSyncFrame=0;syncTime()})}
-function updateControls(){if(!state.ready||state.busy)state.hideTimelinePreview?.();for(const id of ['playBtn','prevBtn','nextBtn','captureBtn','jumpBtn','timeline','stablePlayback','setStart','setEnd','batchBtn'])$(id).disabled=!state.ready||state.busy;for(const id of ['openBtn','pickBtn','fileInput','speed','fps','batchMode','batchStart','batchEnd','batchStep','timestampList'])$(id).disabled=state.busy;const any=state.shots.length>0;for(const id of ['csvBtn','zipBtn','clearBtn','selectAll'])$(id).disabled=!any||state.busy;const selected=state.shots.filter(s=>s.selected).length;const kept=state.shots.filter(s=>s.decision!=='exclude').length;$('reviewCounts').textContent=`保留 ${kept} · 排除 ${state.shots.length-kept}`;$('saveProjectBtn').disabled=!any||state.busy;$('restoreProjectBtn').disabled=state.busy;$('undoBtn').disabled=!state.undo.length||state.busy;$('csvBtn').disabled=!shotsForExport().length||state.busy;$('zipBtn').disabled=!shotsForExport().length||state.busy;$('exportHint').textContent=selected?`导出所选 ${shotsForExport().length} 张保留截图`:`导出全部 ${kept} 张保留截图`;$('deleteSelected').disabled=!selected||state.busy;$('selectAll').disabled=!kept||state.busy||['exclude','review'].includes($('reviewFilter').value);estimateBatch();$('count').textContent=state.shots.length;$('selectedCount').textContent='已选 '+selected+' 张';$('selectAll').checked=kept>0&&selected===kept;$('selectAll').indeterminate=selected>0&&selected<kept;$('cancelBtn').hidden=!state.busy||!state.batching;$('playBtn').textContent=video.paused?'▶ 播放':'❚❚ 暂停';updateAudioControls();updateReviewControls();updateShortcutControls();state.updatePageBoxControls?.();state.updateExportControls?.();state.updateCompressionControls?.();state.updateSortControls?.();state.updateMediaControls?.()}
+function updateControls(){if(!state.ready||state.busy)state.hideTimelinePreview?.();for(const id of ['playBtn','prevBtn','nextBtn','captureBtn','jumpBtn','timeline','stablePlayback','setStart','setEnd','batchBtn'])$(id).disabled=!state.ready||state.busy;for(const id of ['openBtn','pickBtn','fileInput','speed','fps','batchMode','batchStart','batchEnd','batchStep','timestampList'])$(id).disabled=state.busy;const any=state.shots.length>0;for(const id of ['csvBtn','zipBtn','clearBtn','selectAll'])$(id).disabled=!any||state.busy;const selected=state.shots.filter(s=>s.selected).length;const kept=state.shots.filter(s=>s.decision!=='exclude').length;$('reviewCounts').textContent=`保留 ${kept} · 排除 ${state.shots.length-kept}`;$('saveProjectBtn').disabled=!any||state.busy;$('restoreProjectBtn').disabled=state.busy;$('undoBtn').disabled=!state.undo.length||state.busy;$('csvBtn').disabled=!shotsForExport().length||state.busy;$('zipBtn').disabled=!shotsForExport().length||state.busy;$('exportHint').textContent=selected?`导出所选 ${shotsForExport().length} 张保留截图`:`导出全部 ${kept} 张保留截图`;$('deleteSelected').disabled=!selected||state.busy;$('selectAll').disabled=!kept||state.busy||['exclude','review'].includes($('reviewFilter').value);estimateBatch();$('count').textContent=state.shots.length;$('selectedCount').textContent='已选 '+selected+' 张';$('selectAll').checked=kept>0&&selected===kept;$('selectAll').indeterminate=selected>0&&selected<kept;$('cancelBtn').hidden=!state.busy||!state.batching;$('playBtn').textContent=video.paused?'▶ 播放':'❚❚ 暂停';updateAudioControls();updateReviewControls();updateShortcutControls();state.updatePageBoxControls?.();state.updateExportControls?.();state.updateCompressionControls?.();state.updateSortControls?.();state.updateMediaControls?.();state.updateCaptureOptions?.()}
 // Listen before assigning src/load(): cached local media can become ready immediately.
 // Replacing a source removes the old listeners and timer instead of letting them
 // observe the next source or hide its preview after the old timeout.
@@ -77,17 +77,23 @@ async function loadFile(file){
 function seek(t){return new Promise((resolve,reject)=>{if(!state.ready)return reject(Error('请先选择视频'));const target=Math.max(0,Math.min(video.duration-0.000001,t));if(Math.abs(video.currentTime-target)<0.00001&&!video.seeking&&video.readyState>=2)return resolve();let timer=setTimeout(()=>done(Error('视频定位超时')),12000);const done=err=>{clearTimeout(timer);video.removeEventListener('seeked',ok);video.removeEventListener('error',bad);err?reject(err):resolve()};const ok=()=>{if(video.readyState>=2)done();else done(Error('视频画面尚未解码'))};const bad=()=>done(Error('视频解码失败'));video.addEventListener('seeked',ok,{once:true});video.addEventListener('error',bad,{once:true});video.currentTime=target})}
 async function navigate(t,{pause=false}={}){if(!state.ready||state.busy)return;state.busy=true;if(pause)video.pause();updateControls();try{await seek(t);syncTime()}catch(e){toast(e.message)}finally{state.busy=false;updateControls()}}
 function canvasBlob(canvas,type='image/png',quality=1){return new Promise((resolve,reject)=>canvas.toBlob(b=>b?resolve(b):reject(Error('图片生成失败，可能内存不足')),type,quality))}
-function encodeShot(canvas,requestedTime,decoded){
+async function encodeShot(canvas,requestedTime,decoded){
  if(!state.ready||(!decoded&&(video.readyState<2||video.seeking)))throw Error('请等待视频定位完成再截图');
- const width=video.videoWidth,height=video.videoHeight,rate=fps();
+ const options=currentCaptureOptions(),size=captureDimensions(video.videoWidth,video.videoHeight,options.captureMaxEdge);
+ const {width,height}=size,rate=fps();
  if(canvas.width!==width)canvas.width=width;
  if(canvas.height!==height)canvas.height=height;
  const time=decoded?requestedTime:video.currentTime,source={...state.source},createdAt=new Date().toISOString();
  const context=canvas.getContext('2d');
- context.clearRect(0,0,width,height);context.drawImage(decoded?.frame??video,0,0);
- return canvasBlob(canvas).then(blob=>({time,presentationTime:decoded?.presentationTime??null,requestedTime:requestedTime??time,source,width,height,fps:rate,createdAt,watermark:'inherit',note:'',selected:false,decision:'keep',pageBox:null,blob}));
+ context.clearRect(0,0,width,height);
+ context.drawImage(decoded?.frame??video,0,0,width,height);
+ const blob=await canvasBlob(canvas,'image/'+options.captureFormat,options.captureQuality);
+ if(blob.type!=='image/'+options.captureFormat)throw Error('浏览器不支持所选截图格式');
+ return {time,presentationTime:decoded?.presentationTime??null,requestedTime:requestedTime??time,source,width,height,fps:rate,createdAt,watermark:'inherit',note:'',selected:false,decision:'keep',pageBox:null,blob};
 }
 function storeShot(data){
+ if(state.shots.length>=GALLERY_LIMIT)throw Error(`图库已达到 ${GALLERY_LIMIT} 张`);
+ if(retainedImageBytes()+data.blob.size+2*(data.thumbnail?.length||0)>GALLERY_BYTE_LIMIT)throw Error('图库已达到 512 MB 图片预算，请导出并减少截图，或降低后续截图质量');
  if(!state.batching)resetReviewFindings();
  const shot={...data,id:state.nextId++,url:URL.createObjectURL(data.blob)};
  state.shots.push(shot);return shot;
@@ -105,7 +111,8 @@ function renderGallery({incremental=false}={}){
  renumberShots();
  updateReviewControls();
  const g=$('gallery'),filter=$('reviewFilter').value;
- const visible=ordered(state.shots).filter(s=>matchesGalleryFilter(s,filter)),style=settings();
+ const allVisible=ordered(state.shots).filter(s=>matchesGalleryFilter(s,filter));
+ const visible=galleryPageShots(allVisible),style=settings();
  const cards=incremental?new Map([...g.querySelectorAll('.card')].map(c=>[Number(c.dataset.id),c])):new Map();
  if(!incremental||!visible.length)g.replaceChildren();
  if(!visible.length){const d=document.createElement('div');d.className='empty';d.innerHTML=state.shots.length?'<strong>当前筛选下没有截图</strong><p>切换筛选查看其他画面。</p>':'<div class="empty-mark">▧</div><strong>关键画面会留在这里</strong><p>截图后可随时预览、添加说明<br>并单独选择是否带时间戳。</p>';g.append(d)}
@@ -132,7 +139,7 @@ function renderGallery({incremental=false}={}){
 function createGalleryCard(shot,style){
   const card=document.createElement('article');card.className='card'+(shot.decision==='exclude'?' excluded':'')+(shot.selected?' selected':'');card.dataset.id=shot.id;card.title=shot.source.name+' · '+timeText(shot.time);
   const thumb=document.createElement('button');thumb.className='thumb';thumb.title='预览截图 #'+String(shot.number).padStart(3,'0');
-  const img=document.createElement('img');img.src=shot.url;img.alt='截图 #'+String(shot.number).padStart(3,'0')+' · '+timeText(shot.time);img.loading='lazy';
+  const img=document.createElement('img');queueGalleryThumbnail(shot,img);img.decoding='async';img.alt='截图 #'+String(shot.number).padStart(3,'0')+' · '+timeText(shot.time);img.loading='lazy';
   const mark=document.createElement('span');mark.className='screen-mark';mark.textContent=stamp(shot.time,style);mark.hidden=!hasMark(shot,style);markStyle(mark,style);mark.style.color=style.color;
   thumb.append(img,mark);thumb.onclick=()=>openPreview(shot.id);
   const info=document.createElement('div');info.className='card-info';const title=document.createElement('div');title.className='card-title';
@@ -155,7 +162,7 @@ async function batch(){
  const wasPlaying=!video.paused,previous=video.currentTime,canvases=[];
  video.pause();updateControls();
  $('batchProgress').hidden=false;$('batchProgress').max=times.length;$('batchProgress').value=0;
- let done=0,fast=0,lastPaint=-Infinity,reader;
+ let done=0,fast=0,lastPaint=-Infinity,reader,finished=false;
  try{
   const file=state.sourceFile,cancelled=()=>state.cancel;
   const dense=await prepareDenseCapture(file,times,video.videoWidth,video.videoHeight,cancelled);
@@ -167,9 +174,10 @@ async function batch(){
     storeShot(data);done++;if(data.presentationTime!==null)fast++;$('batchProgress').value=done;
     $('batchStatus').textContent=`正在截帧 ${done} / ${times.length}`;
     const now=performance.now();
-    if(now-lastPaint>=120){lastPaint=now;$('reviewFilter').value='all';renderGallery({incremental:true})}
+    if(now-lastPaint>=250){lastPaint=now;$('reviewFilter').value='all';renderGallery({incremental:true})}
    }
   });
+  finished=!state.cancel;
   $('batchStatus').textContent=(state.cancel?'已停止':'已完成')+` · 捕获 ${done} 张`+(fast?`（连续解码 ${fast} 张）`:'');
  }catch(e){$('batchStatus').textContent=`中断 · 已捕获 ${done} 张`;toast(e.message)}
  finally{
@@ -181,10 +189,11 @@ async function batch(){
   if(wasPlaying&&!video.ended){try{await video.play()}catch{toast('浏览器未允许自动续播，请点击播放')}}
   $('batchProgress').hidden=true;$('reviewFilter').value='all';renderGallery({incremental:true});syncTime();
  }
+ if(finished&&done&&$('autoReview').checked)await analyzeShots();
 }
 async function output(shot,s=settings(),forcePNG=false){const c=document.createElement('canvas');c.width=shot.width;c.height=shot.height;const img=await createImageBitmap(shot.blob);const ctx=c.getContext('2d');ctx.drawImage(img,0,0);img.close();if(hasMark(shot,s)){const text=stamp(shot.time,s,true),size=Math.max(12,Math.round(c.width*s.size)),pad=Math.round(size*.5),margin=Math.round(c.width*.015);ctx.font=`500 ${size}px monospace`;const w=ctx.measureText(text).width+pad*2,h=size+pad*2;const x=s.position[1]==='l'?margin:c.width-w-margin,y=s.position[0]==='t'?margin:c.height-h-margin;ctx.fillStyle='rgba(0,0,0,.70)';ctx.fillRect(x,y,w,h);ctx.fillStyle=s.color||'#fff';ctx.textBaseline='middle';ctx.fillText(text,x+pad,y+h/2)}const blob=await canvasBlob(c,forcePNG?'image/png':'image/'+s.format,s.quality);if(!forcePNG&&blob.type!=='image/'+s.format)throw Error('此浏览器不支持选定图片格式，请改为 PNG 或 JPG');return blob}
 function safeName(value){return value.replace(/[<>:"/\\|?*\x00-\x1f]/g,'_').replace(/[. ]+$/,'').slice(0,100)||'视频截图'}
-function filename(shot,s=settings()){return `${safeName(s.prefix)}_${String(shot.number).padStart(3,'0')}_${timeText(shot.time).replace(/:/g,'-')}.${s.format==='jpeg'?'jpg':s.format}`}
+function filename(shot,s=settings()){const time=timeText(shot.time).replace(/:/g,'-');return safeName(screenshotStem(shot,s,time))+'.'+(s.format==='jpeg'?'jpg':s.format)}
 async function save(blob,name){return WorkbenchHost.save(blob,name)}
 async function downloadShot(shot){try{const s=settings();await save(await output(shot,s),filename(shot,s))}catch(e){toast(e.message)}}
 async function openPreview(id){const seq=++state.previewSeq;try{const shot=state.shots.find(x=>x.id===id);if(!shot)return;const blob=await output({...shot},settings(),true);if(seq!==state.previewSeq||!state.shots.some(s=>s.id===id))return;state.previewId=id;if(state.previewURL)URL.revokeObjectURL(state.previewURL);state.previewURL=URL.createObjectURL(blob);$('previewImage').src=state.previewURL;$('previewTitle').textContent='截图 #'+String(shot.number).padStart(3,'0');$('previewDetail').replaceChildren(document.createTextNode(shot.source.name+' · '),shotTimeLink(shot,'跳转到视频 '+timeText(shot.time)),document.createTextNode(` · ${shot.width} × ${shot.height}`+(Number.isFinite(shot.presentationTime)?' · 帧呈现 '+timeText(shot.presentationTime):'')+(shot.note?' · '+shot.note:'')));renderPreviewReview(shot);$('previewWatermark').value=shot.watermark;$('previewNote').value=shot.note;syncPreviewNavigation();if(!$('preview').open)$('preview').showModal()}catch(e){if(seq===state.previewSeq)toast(e.message)}}
@@ -201,7 +210,7 @@ async function exportZip(){
   setExportProgress(`生成 ${i+1}/${shots.length}`);files.push({name:filename(shots[i],s),blob:await output(shots[i],s)});
   if(s.exportLayers&&shots[i].pageBox)files.push({name:'图层/'+filename(shots[i],{...s,format:'png'}).replace(/\.png$/,'.ora'),blob:await createShotORA(shots[i],s)});
  }
- if(s.exportCSV||s.exportMetadata){const rows=metadata(shots,s);if(s.exportCSV)files.push({name:'截图清单.csv',blob:new Blob([csv(rows)],{type:'text/csv;charset=utf-8'})});if(s.exportMetadata)files.push({name:'元数据.json',blob:new Blob([JSON.stringify({tool:'帧律 FrameRight',author:'懂点知产的猫（实习律猫版）',version:'1.4.5',exportedAt:new Date().toISOString(),settings:s,screenshots:rows},null,2)],{type:'application/json'})})}
+ if(s.exportCSV||s.exportMetadata){const rows=metadata(shots,s);if(s.exportCSV)files.push({name:'截图清单.csv',blob:new Blob([csv(rows)],{type:'text/csv;charset=utf-8'})});if(s.exportMetadata)files.push({name:'元数据.json',blob:new Blob([JSON.stringify({tool:'帧律 FrameRight',author:'懂点知产的猫（实习律师版）',version:'1.5.0',exportedAt:new Date().toISOString(),settings:s,screenshots:rows},null,2)],{type:'application/json'})})}
  const zip=await zipArchive(files,(i)=>setExportProgress(`打包 ${i}/${files.length}`));if(await save(zip,safeName(s.caseName||s.prefix)+'_截图材料.zip'))toast(`已导出 ${shots.length} 张截图${s.exportLayers&&shots.some(s=>s.pageBox)?'及可编辑页码框图层':''}`);
  }catch(e){toast(e.message)}finally{state.busy=false;$('zipBtn').textContent='导出为 ZIP';updateControls()}
 }
@@ -212,7 +221,7 @@ $('timeline').oninput=()=>{state.scrubbing=true;$('now').textContent=timeText(Nu
 $('batchMode').onchange=()=>{const mode=$('batchMode').value,frame=mode==='frame',list=mode==='list';for(const id of ['batchRangeFields','batchRangeHint','setStart','setEnd','batchRecommendationPanel'])$(id).hidden=list;$('timestampListField').hidden=!list;if(list){estimateBatch();return;}$('startLabel').textContent=frame?'起始帧（从 0 开始）':'起点（秒或 HH:MM:SS）';$('endLabel').textContent=frame?'终止帧（含）':'终点（秒或 HH:MM:SS）';$('stepLabel').textContent=frame?'间隔（帧）':'间隔（秒）';$('batchStep').value=1;$('batchStep').step=frame?'1':'0.1';$('batchStep').min=frame?'1':'0.001';$('batchStart').value='';$('batchEnd').value='';estimateBatch()};for(const [id,target] of [['setStart','batchStart'],['setEnd','batchEnd']])$(id).onclick=()=>{try{$(target).value=$('batchMode').value==='frame'?Math.floor(video.currentTime*fps()):video.currentTime.toFixed(3);estimateBatch()}catch(e){toast(e.message)}};
 $('timestampList').oninput=()=>estimateBatch();
 for(const id of ['watermark','stampMode','stampPosition','stampSize','recordStart','stampColor'])$(id).addEventListener('input',()=>{$('clockLabel').hidden=$('stampMode').value!=='clock';refreshMarks();markDirty()});$('quality').oninput=()=>$('qualityValue').textContent=$('quality').value+'%';$('format').onchange=()=>{$('formatHint').textContent=$('format').value==='png'?'PNG 无损导出，不受压缩质量设置影响。':'质量越高越清晰，文件也越大。';$('quality').disabled=$('format').value==='png'};$('quality').disabled=true;
-$('reviewFilter').onchange=renderGallery;$('selectAll').onchange=()=>{for(const s of state.shots)s.selected=s.decision!=='exclude'&&$('selectAll').checked;renderGallery()};$('deleteSelected').onclick=()=>removeShots(state.shots.filter(s=>s.selected).map(s=>s.id));$('clearBtn').onclick=()=>{if(!state.busy&&confirm('清空图库中的全部截图？未导出的截图将丢失。'))removeShots(state.shots.map(s=>s.id))};$('zipBtn').onclick=exportZip;$('csvBtn').onclick=async()=>{try{const s=settings();await save(new Blob([csv(metadata(shotsForExport(),s))],{type:'text/csv;charset=utf-8'}),safeName(s.caseName||s.prefix)+'_截图清单.csv')}catch(e){toast(e.message)}};
+$('reviewFilter').onchange=()=>{galleryPage=0;renderGallery()};$('selectAll').onchange=()=>{for(const s of state.shots)s.selected=s.decision!=='exclude'&&$('selectAll').checked;renderGallery()};$('deleteSelected').onclick=()=>removeShots(state.shots.filter(s=>s.selected).map(s=>s.id));$('clearBtn').onclick=()=>{if(!state.busy&&confirm('清空图库中的全部截图？未导出的截图将丢失。'))removeShots(state.shots.map(s=>s.id))};$('zipBtn').onclick=exportZip;$('csvBtn').onclick=async()=>{try{const s=settings();await save(new Blob([csv(metadata(shotsForExport(),s))],{type:'text/csv;charset=utf-8'}),safeName(s.caseName||s.prefix)+'_截图清单.csv')}catch(e){toast(e.message)}};
 $('helpBtn').onclick=()=>$('help').showModal();$('closeHelp').onclick=()=>$('help').close();$('closePreview').onclick=()=>$('preview').close();$('preview').onclose=()=>{state.previewSeq++;if(state.previewURL)URL.revokeObjectURL(state.previewURL);state.previewURL=null};$('previewWatermark').onchange=()=>{const shot=state.shots.find(s=>s.id===state.previewId);if(shot){shot.watermark=$('previewWatermark').value;markDirty();refreshMarks();openPreview(shot.id)}};$('previewDownload').onclick=()=>{const shot=state.shots.find(s=>s.id===state.previewId);if(shot)downloadShot(shot)};$('copyBtn').onclick=async()=>{try{if(!navigator.clipboard?.write||typeof ClipboardItem==='undefined')throw Error('当前浏览器环境不支持复制图片，请下载 PNG 后复制');const shot=state.shots.find(s=>s.id===state.previewId);await navigator.clipboard.write([new ClipboardItem({'image/png':await output(shot,settings(),true)})]);toast('图片已复制')}catch(e){toast(e.message)}};
 document.addEventListener('keydown',e=>{
  const active=document.activeElement;

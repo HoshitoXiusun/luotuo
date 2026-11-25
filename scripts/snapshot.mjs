@@ -7,7 +7,7 @@ const pkg=JSON.parse(await fs.readFile(path.join(root,'package.json'),'utf8'));
 const out=path.join(root,'history','v'+pkg.version+'.json');
 try{await fs.access(out);throw Error('快照已存在，请增加版本号')}catch(e){if(e.code!=='ENOENT')throw e}
 const hashes={};
-async function walk(dir=''){for(const e of await fs.readdir(path.join(root,dir),{withFileTypes:true})){if(['.git','node_modules','history','.DS_Store','_site'].includes(e.name)||e.name.endsWith('.zip'))continue;const rel=path.join(dir,e.name);if(e.isDirectory())await walk(rel);else if(e.isFile())hashes[rel]=createHash('sha256').update(await fs.readFile(path.join(root,rel))).digest('hex')}}
+async function walk(dir=''){for(const e of await fs.readdir(path.join(root,dir),{withFileTypes:true})){if(['.git','node_modules','release-assets','history','.DS_Store','_site'].includes(e.name)||e.name.endsWith('.zip'))continue;const rel=path.join(dir,e.name);if(e.isDirectory())await walk(rel);else if(e.isFile())hashes[rel]=createHash('sha256').update(await fs.readFile(path.join(root,rel))).digest('hex')}}
 await walk();hashes['history/设计沿革.md']=createHash('sha256').update(await fs.readFile(path.join(root,'history/设计沿革.md'))).digest('hex');
 await fs.writeFile(out,JSON.stringify({version:pkg.version,date:new Date().toLocaleDateString('sv-SE',{timeZone:'Asia/Shanghai'}),note:process.argv[2]||'源码与构建成品校验清单；完整代码随 GitHub 提交保存',sha256:hashes},null,2));
 console.log('Saved '+out);

@@ -1,4 +1,4 @@
-export const GALLERY_LIMIT=500;
+export const GALLERY_LIMIT=2000;
 
 // Source groups stay in natural order. Direction changes order inside a source
 // group; capture-time sorting spans the whole gallery. Capture ids never change.
@@ -21,7 +21,8 @@ export function sortPreferences(value={}){
 export function changeShotSort(value,mode){
  const next=sortPreferences(value);if(!['time','capture'].includes(mode))throw Error('排序方式无效');
  if(next.sort===mode)next.sortDirections[mode]=next.sortDirections[mode]==='desc'?'asc':'desc';
- else{next.sort=mode;next.numberDirection=next.sortDirections[mode]}
+ else next.sort=mode;
+ next.numberDirection=next.sortDirections[mode];
  return next;
 }
 export function matchesShotSource(shotSource,currentSource){

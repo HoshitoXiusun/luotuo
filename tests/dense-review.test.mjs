@@ -53,3 +53,10 @@ test('review estimates overlap for scrolling and flags short overlap for checkin
  assert.deepEqual(compareReviewFrames(a,pixels((x,y)=>pattern(x,y+10)),side),{type:'scroll',axis:'y',overlap:75});
  assert.deepEqual(compareReviewFrames(a,pixels((x,y)=>pattern(x+32,y)),side),{type:'gap',axis:'x',overlap:20});
 });
+
+test('dense low-resolution short GOPs can share decode work without enabling sparse prefixes',()=>{
+ const track={width:320,height:180,timescale:25,keys:[0,25],ticks:Array.from({length:50},(_,i)=>i),presentation:Uint32Array.from({length:50},(_,i)=>i)};
+ const groups=planAvcGroups(track,Array.from({length:25},(_,i)=>i/25));
+ assert.equal(groups.size,1);assert.equal(groups.values().next().value.targets.length,25);
+ assert.equal(planAvcGroups(track,[0,.04,.08]).size,0);
+});
